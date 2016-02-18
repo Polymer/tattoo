@@ -1,7 +1,7 @@
 #!/usr/bin/env node --harmony
 /**
  * @license
- * Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+ * Copyright (c) 2016 The Polymer Project Authors. All rights reserved.
  * This code may only be used under the BSD style license found at
  * http://polymer.github.io/LICENSE.txt
  * The complete set of authors may be found at
@@ -67,6 +67,13 @@ const cli = cliArgs([
     defaultValue: false,
     description:
         "Set to clone all repos from remote instead of updating local copies."
+  },
+  {
+    name: "verbose",
+    type: Boolean,
+    defaultValue: false,
+    description:
+        "Set to print output from failed tests."
   }
 ]);
 
@@ -89,8 +96,8 @@ const testRateLimiter = new Bottleneck(1, 100);
 
 if (opts.help) {
   console.log(cli.getUsage({
-    header: "tedium is a friendly bot for doing mass changes to Polymer repos!",
-    title: "tedium"
+    header: "tattoo runs many tests at various branches!!",
+    title: "tattoo"
   }));
   process.exit(0);
 }
@@ -435,8 +442,11 @@ async function _main(elements: ElementRepo[]) {
   let failed = 0;
   let skipped = 0;
   const testResults = await promiseAllWithProgress(testPromises, "Testing...");
-  console.log("\n\n");
-  let rerun = "";
+  // Give the progress bar a chance to display.
+  await new Promise((resolve, _) => {
+    setTimeout(() => resolve(), 1000);
+  });
+  let rerun = "#!/bin/bash\n";
   for (let result of testResults) {
     testProgress.tick();
     const statusString = (() => {
@@ -455,9 +465,12 @@ async function _main(elements: ElementRepo[]) {
           return "SKIPPED";
       }
     })();
-    console.log("Tests for: " + result.elementRepo.dir + " status: " + statusString);
     if (result.result === TestResultValue.failed) {
-      console.log(result.output);
+      console.log("Tests for: " + result.elementRepo.dir + " status: " +
+                  statusString);
+      if (opts["verbose"]) {
+        console.log(result.output);
+      }
     }
   }
   const total = passed + failed;

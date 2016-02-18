@@ -41,7 +41,7 @@ export async function test(element: ElementRepo): Promise<TestResult> {
   const dir = element.dir;
   let testValue: TestResultValue;
   let testOutput: string;
-  const wctStatus = await new Promise<ProcessResult>(
+  let spawnWct = new Promise<ProcessResult>(
     (resolve, reject) => {
       const exists = existsSync(path.join(element.dir, "test"));
       if (!exists) {
@@ -75,6 +75,17 @@ export async function test(element: ElementRepo): Promise<TestResult> {
         reject(err);
       });
   });
+  let flakeRuns = 2;
+  let wctStatus = await spawnWct;
+  while (flakeRuns > 0) {
+    flakeRuns--;
+    if (wctStatus instanceof CompletedProcess && wctStatus.status === TestResultValue.failed) {
+      wctStatus = await spawnWct;
+    } else {
+      break;
+    }
+  }
+
   let testStatus = TestResultValue.passed;
   let output: string;
   if (wctStatus instanceof Error) {
