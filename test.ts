@@ -51,7 +51,11 @@ export async function test(element: ElementRepo): Promise<TestResult> {
       const spawnParams = {
         cwd: element.dir
       };
-      const wctCommand = path.join("wct");
+      const wctCommand = path.join(__dirname,
+                                   "..",
+                                   "node_modules",
+                                   ".bin",
+                                   "wct");
       // Something about the buffering or VM reuse of child_process.exec
       // interacts extraordinarily poorly with wct, forcing the use
       // of child_process.spawn.

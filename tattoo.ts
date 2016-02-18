@@ -58,8 +58,16 @@ const cli = cliArgs([
     multiple: true,
     alias: "r",
     description:
-        "Explicit repos to process. Specifying explicit repos will disable" +
+        "Explicit repos to load. Specifying explicit repos will disable" +
         "running on the implicit set of repos for the user."
+  }, {
+    name: "test-repo",
+    type: String,
+    defaultValue: [],
+    multiple: true,
+    alias: "t",
+    description:
+        "Repositories to test."
   },
   {
     name: "clean",
@@ -392,7 +400,9 @@ async function _main(elements: ElementRepo[]) {
   elements.push(...await promiseAllWithProgress(promises, "Cloning repos..."));
 
   fs.writeFileSync("repos/.bowerrc", JSON.stringify({directory: "."}));
-  child_process.execSync("bower install sinonjs", {cwd: "repos"});
+  const bowerCmd = path.join(__dirname, "..", "node_modules", ".bin", "bower");
+  child_process.execSync(bowerCmd + " install web-component-tester",
+                         {cwd: "repos", stdio: "ignore"});
 
   // Transform code on disk and push it up to github
   // (if that's what the user wants)
@@ -420,10 +430,29 @@ async function _main(elements: ElementRepo[]) {
     "repos/mocha",
     "repos/marked"
   ]);
-  const testProgress =
-      standardProgressBar("Testing...", elements.length);
   const testPromises: Array<Promise<TestResult>> = [];
-  for (const element of elements) {
+
+  let elementsToTest: ElementRepo[];
+
+  if (typeof opts["test-repo"] === "string") {
+    if (opts["test-repo"]) {
+      opts["test-repo"] = [opts["test-repo"]];
+    } else {
+      opts["test-repo"] = [];
+    }
+  }
+  if (opts["test-repo"].length > 0) {
+    elementsToTest = elements.filter((el) => {
+      return opts["test-repo"].indexOf(el.dir.substring(6)) > -1;
+    });
+  } else {
+    elementsToTest = elements;
+  }
+
+  const testProgress =
+      standardProgressBar("Testing...", elementsToTest.length);
+
+  for (const element of elementsToTest) {
     if (excludes.has(element.dir)) {
       testProgress.tick();
       continue;
