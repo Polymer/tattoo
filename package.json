@@ -7,6 +7,7 @@
   "scripts": {
     "test": "tslint *.ts custom_typings/*.ts",
     "build": "tsc",
+    "tattoo": "node --harmony_destructuring lib/tattoo.js",
     "build:watch": "tsc -w",
     "test:watch": "watch 'npm test' ./",
     "prepublish": "npm run build",
