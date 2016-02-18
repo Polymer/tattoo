@@ -1,6 +1,9 @@
+rerun.sh
 .github-cachedb
+*.map
 node_modules
 token
 repos
 *.js
 typings
+npm-debug.log

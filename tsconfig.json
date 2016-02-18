@@ -1,0 +1,33 @@
+{
+    "compilerOptions": {
+        "target": "es6",
+        "module": "commonjs",
+        "moduleResolution": "node",
+        "isolatedModules": true,
+        "declaration": false,
+        "noImplicitAny": true,
+        "removeComments": false,
+        "preserveConstEnums": true,
+        "suppressImplicitAnyIndexErrors": true,
+        "outDir": "lib"
+    },
+    "files": [
+        "custom_typings/bottleneck.d.ts",
+        "custom_typings/command-line-args.d.ts",
+        "custom_typings/github.d.ts",
+        "custom_typings/hydrolysis.d.ts",
+        "custom_typings/main.d.ts",
+        "custom_typings/nodegit.d.ts",
+        "custom_typings/pad.d.ts",
+        "custom_typings/promisify-node.d.ts",
+        "element-repo.ts",
+        "tattoo.ts",
+        "test-result.ts",
+        "typings/main.d.ts",
+        "test.ts",
+        "util.ts"
+    ],
+    "atom": {
+        "rewriteTsconfig": true
+    }
+}
