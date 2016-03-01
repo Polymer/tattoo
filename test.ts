@@ -20,6 +20,7 @@ import {existsSync} from "./util";
 
 import * as child_process from "child_process";
 import * as path from "path";
+import * as resolve from "resolve";
 
 class CompletedProcess {
   status: TestResultValue;
@@ -41,6 +42,7 @@ export async function test(element: ElementRepo): Promise<TestResult> {
   const dir = element.dir;
   let testValue: TestResultValue;
   let testOutput: string;
+  const wctCommand = "wct";
   let spawnWct = new Promise<ProcessResult>(
     (resolve, reject) => {
       const exists = existsSync(path.join(element.dir, "test"));
@@ -51,7 +53,6 @@ export async function test(element: ElementRepo): Promise<TestResult> {
       const spawnParams = {
         cwd: element.dir
       };
-      const wctCommand = path.join("wct");
       // Something about the buffering or VM reuse of child_process.exec
       // interacts extraordinarily poorly with wct, forcing the use
       // of child_process.spawn.
@@ -59,11 +60,7 @@ export async function test(element: ElementRepo): Promise<TestResult> {
       const child = child_process.spawn(wctCommand, [], spawnParams);
       let output = "";
       child.stdout.on("data", (data: Buffer | string) => {
-        // if (data instanceof Buffer) {
-        //   output += data.toString();
-        // } else if (typeof data === "string") {
           output += data;
-        // }
       });
       child.on("exit", (code: number) => {
         const value =

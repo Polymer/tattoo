@@ -1,4 +1,4 @@
-#!/usr/bin/env node --harmony
+#!/usr/bin/env node
 /**
  * @license
  * Copyright (c) 2016 The Polymer Project Authors. All rights reserved.
@@ -34,6 +34,7 @@ import * as promisify from "promisify-node";
 import * as rimraf from "rimraf";
 import * as Bottleneck from "bottleneck";
 import * as child_process from "child_process";
+import * as resolve from "resolve";
 
 import {ElementRepo, PushStatus} from "./element-repo";
 import * as util from "./util";
@@ -58,8 +59,17 @@ const cli = cliArgs([
     multiple: true,
     alias: "r",
     description:
-        "Explicit repos to process. Specifying explicit repos will disable" +
-        "running on the implicit set of repos for the user."
+        "Explicit repos to load. Specifying explicit repos will disable" +
+        "running on the default set of repos for the user."
+  }, {
+    name: "test-repo",
+    type: String,
+    defaultValue: [],
+    multiple: true,
+    alias: "t",
+    description:
+        "Repositories to test. All dependencies must be specified with --repo" +
+        " or be included in the default set."
   },
   {
     name: "clean",
@@ -179,9 +189,6 @@ async function getRepos(): Promise<GitHub.Repo[]> {
     repos.push(await getRepo("PolymerLabs", "promise-polyfill"));
     repos.push(await getRepo("webcomponents", "webcomponentsjs"));
     repos.push(await getRepo("web-animations", "web-animations-js"));
-    repos.push(await getRepo("chaijs", "chai"));
-    repos.push(await getRepo("sinonjs", "sinon"));
-    repos.push(await getRepo("mochajs", "mocha"));
     repos.push(await getRepo("chjj", "marked"));
     repos.push(await getRepo("PrismJS", "prism"));
     progressBar.tick();
@@ -392,7 +399,9 @@ async function _main(elements: ElementRepo[]) {
   elements.push(...await promiseAllWithProgress(promises, "Cloning repos..."));
 
   fs.writeFileSync("repos/.bowerrc", JSON.stringify({directory: "."}));
-  child_process.execSync("bower install sinonjs", {cwd: "repos"});
+  const bowerCmd = resolve.sync("bower");
+  child_process.execSync(`node ${bowerCmd} install web-component-tester`,
+                         {cwd: "repos", stdio: "ignore"});
 
   // Transform code on disk and push it up to github
   // (if that's what the user wants)
@@ -420,10 +429,31 @@ async function _main(elements: ElementRepo[]) {
     "repos/mocha",
     "repos/marked"
   ]);
-  const testProgress =
-      standardProgressBar("Testing...", elements.length);
   const testPromises: Array<Promise<TestResult>> = [];
-  for (const element of elements) {
+
+  let elementsToTest: ElementRepo[];
+
+  if (typeof opts["test-repo"] === "string") {
+    if (opts["test-repo"]) {
+      opts["test-repo"] = [opts["test-repo"]];
+    } else {
+      opts["test-repo"] = [];
+    }
+  }
+  // "repos"
+  const prefix = 6;
+  if (opts["test-repo"].length > 0) {
+    elementsToTest = elements.filter((el) => {
+      return opts["test-repo"].indexOf(el.dir.substring(prefix)) > -1;
+    });
+  } else {
+    elementsToTest = elements;
+  }
+
+  const testProgress =
+      standardProgressBar("Testing...", elementsToTest.length);
+
+  for (const element of elementsToTest) {
     if (excludes.has(element.dir)) {
       testProgress.tick();
       continue;
