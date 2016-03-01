@@ -2,8 +2,10 @@
   "name": "tattoo",
   "version": "1.0.0",
   "description": "Test all the things over and over",
-  "main": "tattoo.js",
-  "bin": "tattoo.js",
+  "main": "lib/tattoo.js",
+  "bin": {
+    "tattoo" : "lib/tattoo.js"
+  },
   "scripts": {
     "test": "tslint *.ts custom_typings/*.ts",
     "build": "tsc",
@@ -36,6 +38,7 @@
     "pad": "^1.0.0",
     "progress": "^1.1.8",
     "promisify-node": "^0.3.0",
+    "resolve": "^1.1.7",
     "rimraf": "^2.4.3",
     "web-component-tester": "^4.2.0"
   },
