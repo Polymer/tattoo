@@ -24,6 +24,7 @@
         "element-repo.ts",
         "tattoo.ts",
         "test-result.ts",
+        "latest-release.ts",
         "typings/main.d.ts",
         "test.ts",
         "util.ts"

@@ -4,7 +4,7 @@
   "description": "Test all the things over and over",
   "main": "lib/tattoo.js",
   "bin": {
-    "tattoo" : "lib/tattoo.js"
+    "tattoo": "lib/tattoo.js"
   },
   "scripts": {
     "test": "tslint *.ts custom_typings/*.ts",
@@ -40,6 +40,7 @@
     "promisify-node": "^0.3.0",
     "resolve": "^1.1.7",
     "rimraf": "^2.4.3",
+    "semver": "^5.1.0",
     "web-component-tester": "^4.2.0"
   },
   "devDependencies": {

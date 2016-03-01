@@ -42,6 +42,10 @@ declare module "nodegit" {
     checkoutBranch(branch: string | Reference): Promise<void>;
     getRemote(remote: string): Promise<Remote>
     fetchAll(fetchOpts: FetchOptions): Promise<void>
+    defaultSignature(): Signature;
+    setHeadDetached(commitish: Oid, a: any, b: any): Number;
+    getReferenceCommit(name: string | Reference): Promise<Commit>;
+    checkoutRef(ref: Reference): Promise<void>
   }
   interface RemoteCallbacks {
     credentials?: () => Cred;
@@ -55,6 +59,21 @@ declare module "nodegit" {
     push(refSpecs: string[], options: PushOptions): Promise<number>;
   }
   export class Oid {}
-  export class Commit {}
+  export class Tree {}
+  export class Commit {
+    id(): string
+  }
   export class Reference {}
+
+  export class Tag {
+    static list(repo: Repository): Promise<string[]>
+    static lookup(repo: Repository, id: string|Oid|Tag): Tag
+    targetId(): Oid
+  }
+
+  type TreeIsh  = Oid | Tree | Commit | Reference
+
+  export class Checkout {
+    static tree(repo: Repository, treeIsh: TreeIsh): Promise<void>
+  }
 }

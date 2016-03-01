@@ -40,6 +40,7 @@ import {ElementRepo, PushStatus} from "./element-repo";
 import * as util from "./util";
 import {TestResult, TestResultValue} from "./test-result";
 import {test} from "./test";
+import {checkoutLatestRelease} from "./latest-release";
 
 const cli = cliArgs([
   {name: "help", type: Boolean, alias: "h", description: "Print usage."},
@@ -77,6 +78,13 @@ const cli = cliArgs([
     defaultValue: false,
     description:
         "Set to clone all repos from remote instead of updating local copies."
+  },
+  {
+    name: "released",
+    type: Boolean,
+    defaultValue: false,
+    description:
+        "Set to update repos to the latest release when possible."
   },
   {
     name: "verbose",
@@ -352,6 +360,9 @@ function openRepo(cloneOptions: nodegit.CloneOptions, ghRepo: GitHub.Repo) {
         dir,
         cloneOptions);
     });
+  }
+  if (opts["released"]) {
+    repoPromise = checkoutLatestRelease(repoPromise, dir);
   }
   return repoPromise.then((repo) =>
     new ElementRepo({repo, dir, ghRepo, analyzer: null})
