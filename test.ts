@@ -38,7 +38,7 @@ class CompletedProcess {
 
 type ProcessResult = CompletedProcess | Error;
 
-export async function test(element: ElementRepo): Promise<TestResult> {
+export async function test(element: ElementRepo, flags: string[]): Promise<TestResult> {
   const dir = element.dir;
   let testValue: TestResultValue;
   let testOutput: string;
@@ -57,7 +57,7 @@ export async function test(element: ElementRepo): Promise<TestResult> {
       // interacts extraordinarily poorly with wct, forcing the use
       // of child_process.spawn.
 
-      const child = child_process.spawn(wctCommand, [], spawnParams);
+      const child = child_process.spawn(wctCommand, flags, spawnParams);
       let output = "";
       child.stdout.on("data", (data: Buffer | string) => {
           output += data;

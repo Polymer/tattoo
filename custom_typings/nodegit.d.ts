@@ -39,13 +39,17 @@ declare module "nodegit" {
         filesToAdd: string[], author: Signature, committer: Signature,
         message: string): Promise<Oid>;
     getHeadCommit(): Promise<Commit>;
+    setHead(refname: string): Promise<Number>;
+    getBranchCommit(branch: string): Promise<Commit>;
     checkoutBranch(branch: string | Reference): Promise<void>;
     getRemote(remote: string): Promise<Remote>
     fetchAll(fetchOpts: FetchOptions): Promise<void>
     defaultSignature(): Signature;
     setHeadDetached(commitish: Oid, a: any, b: any): Number;
     getReferenceCommit(name: string | Reference): Promise<Commit>;
-    checkoutRef(ref: Reference): Promise<void>
+    checkoutRef(ref: Reference): Promise<void>;
+    path(): string;
+    workdir(): string;
   }
   interface RemoteCallbacks {
     credentials?: () => Cred;
@@ -63,7 +67,9 @@ declare module "nodegit" {
   export class Commit {
     id(): string
   }
-  export class Reference {}
+  export class Reference {
+    static list(repo: Repository): Promise<any>
+  }
 
   export class Tag {
     static list(repo: Repository): Promise<string[]>
@@ -73,7 +79,18 @@ declare module "nodegit" {
 
   type TreeIsh  = Oid | Tree | Commit | Reference
 
+
+  export interface CheckoutOptions {
+    checkoutStrategy: Number;
+  }
+
+  interface Strategies {
+    FORCE: Number;
+  }
+
   export class Checkout {
+    static STRATEGY: Strategies;
     static tree(repo: Repository, treeIsh: TreeIsh): Promise<void>
+    static head(repo: Repository, options?: CheckoutOptions): Promise<void>
   }
 }
