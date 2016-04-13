@@ -9,11 +9,10 @@
   "scripts": {
     "test": "tslint *.ts custom_typings/*.ts",
     "build": "tsc",
-    "tattoo": "node --harmony_destructuring lib/tattoo.js",
+    "tattoo": "node  lib/tattoo.js",
     "build:watch": "tsc -w",
     "test:watch": "watch 'npm test' ./",
-    "prepublish": "npm run build",
-    "postinstall": "typings install"
+    "prepublish": "typings install && npm run build"
   },
   "repository": {
     "type": "git",
@@ -40,12 +39,10 @@
     "promisify-node": "^0.3.0",
     "resolve": "^1.1.7",
     "rimraf": "^2.4.3",
-    "semver": "^5.1.0",
-    "web-component-tester": "^4.2.0"
+    "semver": "^5.1.0"
   },
   "devDependencies": {
-    "tslint": "^3.1.1",
-    "typescript": "1.8.5",
+    "typescript": "^1.9.0-dev.20160418",
     "typings": "^0.6.8",
     "watch": "^0.17.1"
   },

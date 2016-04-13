@@ -10,6 +10,7 @@ export async function checkoutLatestRelease(
   let latestRelease: string;
   if (tags && tags.length > 0) {
     try {
+      // TODO(garlicnation): Patch semver.rcompare so that it no longer throws.
       latestRelease = tags.sort(semver.rcompare)[0];
     } catch (err) {
       // We couldn't pick a release, so we'll just bow out here.
@@ -18,14 +19,7 @@ export async function checkoutLatestRelease(
   } else {
     return repo;
   }
-  let commit: nodegit.Commit;
-  try {
-    commit = await repo.getReferenceCommit(latestRelease);
-  }
-  catch (err) {
-    console.log(dir, err);
-    return repo;
-  }
+  let commit: nodegit.Commit = await repo.getReferenceCommit(latestRelease);
   repo.setHeadDetached(commit.id(), repo.defaultSignature(), "Checkout: HEAD " + commit.id());
   return repo;
 }

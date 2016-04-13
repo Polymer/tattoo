@@ -26,13 +26,13 @@ class CompletedProcess {
   status: TestResultValue;
   stdout: string;
   stderr: string;
-  constructor ({status = 0, stdout = null, stderr = null}) {
-    if (status == null) {
+  constructor (args: {status: TestResultValue, stdout?: string, stderr?: string}) {
+    if (args.status == null) {
       throw new Error("status must not be null.");
     }
-    this.status = status;
-    this.stdout = stdout;
-    this.stderr = stderr;
+    this.status = args.status;
+    this.stdout = args.stdout;
+    this.stderr = args.stderr;
   }
 }
 
