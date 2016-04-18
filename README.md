@@ -4,32 +4,27 @@ Test all the things over and over.
 ## Installation
 
 ```
-git clone https://github.com/Polymer/tattoo
-cd tattoo
-npm install
+npm install -g tattoo
 ```
 
 ### Usage
 
 ***Test all repos***
 ```
-cd tattoo
-./run.sh
-# To re-run failed tests(for debugging)
-./rerun.sh
+mkdir tattoo_work
+cd tattoo_work
+tattoo
 ```
 
 ***Test one repo***
 ```
-cd tattoo
-./run.sh -- -t paper-input --verbose
+tattoo -t paper-input --verbose
 ```
 
 ***Test two repos***
 
 ```
-cd tattoo
-./run.sh -- -t paper-input -t paper-icon-button --verbose
+tattoo -t paper-input -t paper-icon-button --verbose
 ```
 
 ***Test repos with a config.***
@@ -49,7 +44,7 @@ Create a json config file with `branch-config` and/or `wctflags` keys:
 ```
 Then run:
 ```
-./run.sh -- -t paper-button -t paper-behaviors
+tattoo -t paper-button -t paper-behaviors
 ```
 
 
