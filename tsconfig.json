@@ -21,12 +21,13 @@
         "custom_typings/pad.d.ts",
         "custom_typings/promisify-node.d.ts",
         "custom_typings/resolve.d.ts",
-        "element-repo.ts",
-        "tattoo.ts",
-        "test-result.ts",
-        "typings/main.d.ts",
-        "test.ts",
-        "util.ts"
+        "src/element-repo.ts",
+        "src/tattoo.ts",
+        "src/test-result.ts",
+        "src/latest-release.ts",
+        "src/test.ts",
+        "src/util.ts",
+        "typings/main.d.ts"
     ],
     "atom": {
         "rewriteTsconfig": true

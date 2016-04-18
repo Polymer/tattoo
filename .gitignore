@@ -1,4 +1,5 @@
 rerun.sh
+.DS_Store
 .github-cachedb
 *.map
 node_modules

@@ -40,6 +40,7 @@ import {ElementRepo, PushStatus} from "./element-repo";
 import * as util from "./util";
 import {TestResult, TestResultValue} from "./test-result";
 import {test} from "./test";
+import {checkoutLatestRelease} from "./latest-release";
 
 const cli = cliArgs([
   {name: "help", type: Boolean, alias: "h", description: "Print usage."},
@@ -79,6 +80,27 @@ const cli = cliArgs([
         "Set to clone all repos from remote instead of updating local copies."
   },
   {
+    name: "wctflags",
+    type: String,
+    defaultValue: "-b chrome",
+    description: "Set to specify flags passed to wct."
+  },
+  {
+    name: "released",
+    type: Boolean,
+    defaultValue: false,
+    description:
+        "Set to update repos to the latest release when possible."
+  },
+  {
+    name: "configfile",
+    alias: "c",
+    type: String,
+    defaultValue: "tattoo_config.json",
+    description:
+        "Set to use a config file to override branches/orgs for particular repos."
+  },
+  {
     name: "verbose",
     type: Boolean,
     defaultValue: false,
@@ -88,6 +110,25 @@ const cli = cliArgs([
 ]);
 
 console.time("tattoo");
+
+interface RepoConfig {
+  org?: string;
+  repo?: string;
+  ref?: string;
+}
+
+interface BranchConfig {
+  [key: string]: RepoConfig;
+}
+
+interface SerializedBranchConfig {
+  [key: string]: string;
+}
+
+interface TattooConfig {
+  branchconfig?: SerializedBranchConfig;
+  wctflags?: Array<string>;
+}
 
 interface UserRepo {
   user: string;
@@ -239,16 +280,22 @@ function standardProgressBar(label: string, total: number) {
 }
 
 /**
- * Creates a branch with the given name on the given repo.
+ * Checks out a branch with a given name on a repo.
  *
  * returns a promise of the nodegit Branch object for the new branch.
  */
-async function checkoutNewBranch(
-    repo: nodegit.Repository, branchName: string): Promise<void> {
-  const commit = await repo.getHeadCommit();
-  const branch =
-      await nodegit.Branch.create(repo, branchName, commit, false);
-  return repo.checkoutBranch(branch);
+async function checkoutBranch(
+    repo: nodegit.Repository, branchName: string): Promise<nodegit.Repository> {
+    return new Promise<nodegit.Repository>((resolve, reject) => (
+      child_process.exec("git checkout " + branchName,
+          {cwd: repo.workdir()},
+          (error, stdout, stderr)  => {
+            if (error) {
+              console.log("Error checkout out " + branchName + "in : " + repo.workdir());
+            }
+            resolve(repo);
+          })
+    ));
 }
 
 let elementsPushed = 0;
@@ -270,7 +317,7 @@ function pushIsAllowed() {
 }
 
 /**
- * Returns an authenticated github connection.
+ * @returns an authenticated github connection.
  */
 function connectToGithub() {
   const github = new GitHub({
@@ -286,7 +333,7 @@ function connectToGithub() {
 /**
  * Analyzes all of the HTML in 'repos/*' with hydrolysis.
  *
- * Returns a promise of the hydrolysis.Analyzer with all of the info loaded.
+ * @returns a promise of the hydrolysis.Analyzer with all of the info loaded.
  */
 async function analyzeRepos() {
   const dirs = fs.readdirSync("repos/");
@@ -333,12 +380,15 @@ async function analyzeRepos() {
   return analyzer;
 }
 
-function openRepo(cloneOptions: nodegit.CloneOptions, ghRepo: GitHub.Repo) {
+
+async function openRepo(cloneOptions: nodegit.CloneOptions,
+  ghRepo: GitHub.Repo,
+  branchConfig: BranchConfig): Promise<ElementRepo> {
   const dir = path.join("repos", ghRepo.name);
-  let repoPromise: Promise<nodegit.Repository>;
+  let repo: nodegit.Repository;
   if (util.existsSync(dir)) {
     let updatedRepo: nodegit.Repository;
-    repoPromise = nodegit.Repository.open(dir).then((repo) => {
+    repo = await nodegit.Repository.open(dir).then((repo) => {
         updatedRepo = repo;
         return cloneRateLimiter.schedule(() =>
           updatedRepo.fetchAll(cloneOptions.fetchOpts)
@@ -346,16 +396,40 @@ function openRepo(cloneOptions: nodegit.CloneOptions, ghRepo: GitHub.Repo) {
       }
     ).then(() => updatedRepo);
   } else {
-    repoPromise = cloneRateLimiter.schedule(() => {
+    // Potential race condition if multiple repos w/ the same name are checked
+    // out simultaneously.
+    repo = await cloneRateLimiter.schedule(() => {
       return nodegit.Clone.clone(
         ghRepo.clone_url,
         dir,
         cloneOptions);
     });
   }
-  return repoPromise.then((repo) =>
-    new ElementRepo({repo, dir, ghRepo, analyzer: null})
-  );
+  let repoConfig = branchConfig[ghRepo.name];
+  if (repoConfig && (repoConfig["branch"] || repoConfig["ref"])) {
+    const ref = repoConfig["branch"] || repoConfig["ref"];
+    repo = await checkoutBranch(repo, ref);
+  } else if (opts["released"]) {
+    repo = await checkoutLatestRelease(repo, dir);
+  } else {
+    repo = await checkoutBranch(repo, "master");
+  }
+
+  return new ElementRepo({repo, dir, ghRepo, analyzer: null});
+}
+
+function loadBranchConfig(config: SerializedBranchConfig): BranchConfig {
+  let loadedConfig: BranchConfig = {};
+  for (let key in config) {
+    let shorthand = config[key];
+    let orgRepoRef = shorthand.split("#");
+    let ref = orgRepoRef[1];
+    let orgRepo = orgRepoRef[0].split("/");
+    let org = orgRepo[0];
+    let repo = orgRepo[1];
+    loadedConfig[key] = {repo: repo, org: org, ref: ref};
+  }
+  return loadedConfig;
 }
 
 async function _main(elements: ElementRepo[]) {
@@ -364,6 +438,18 @@ async function _main(elements: ElementRepo[]) {
   }
   if (!util.existsSync("repos")) {
      fs.mkdirSync("repos");
+  }
+
+  let configFile = opts["configfile"];
+  let branchConfig: BranchConfig = {};
+  if (util.existsSync(configFile)) {
+    let loadedConfigFile: TattooConfig = JSON.parse(fs.readFileSync(configFile, "utf8"));
+    if (loadedConfigFile["branch-config"]) {
+      branchConfig = loadBranchConfig(loadedConfigFile["branch-config"]);
+    }
+    if (loadedConfigFile["wctflags"]) {
+      opts["wctflags"] = loadedConfigFile["wctflags"].join(" ");
+    }
   }
 
   for (let dir of fs.readdirSync("repos")) {
@@ -392,7 +478,7 @@ async function _main(elements: ElementRepo[]) {
   };
   // Clone git repos.
   for (const ghRepo of ghRepos) {
-    let repoPromise = openRepo(cloneOptions, ghRepo);
+    let repoPromise = openRepo(cloneOptions, ghRepo, branchConfig);
     // TODO(garlicnation): Checkout branch of a repository.
     promises.push(repoPromise);
   }
@@ -412,7 +498,6 @@ async function _main(elements: ElementRepo[]) {
     "repos/test-all",
     "repos/ContributionGuide",
     "repos/molecules", // Was deleted
-    "repos/polymer",
     "repos/iron-doc-viewer",
     "repos/iron-component-page",
     "repos/platinum-push-messaging",
@@ -450,17 +535,13 @@ async function _main(elements: ElementRepo[]) {
     elementsToTest = elements;
   }
 
-  const testProgress =
-      standardProgressBar("Testing...", elementsToTest.length);
-
   for (const element of elementsToTest) {
     if (excludes.has(element.dir)) {
-      testProgress.tick();
       continue;
     }
     try {
       const testPromise = testRateLimiter.schedule(() => {
-        return test(element);
+        return test(element, opts["wctflags"].split(" "));
       });
       testPromises.push(testPromise);
     } catch (err) {
@@ -478,7 +559,6 @@ async function _main(elements: ElementRepo[]) {
   });
   let rerun = "#!/bin/bash\n";
   for (let result of testResults) {
-    testProgress.tick();
     const statusString = (() => {
       switch (result.result) {
         case TestResultValue.passed:
