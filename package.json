@@ -1,6 +1,6 @@
 {
   "name": "tattoo",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Test all the things over and over",
   "main": "lib/tattoo.js",
   "bin": {
