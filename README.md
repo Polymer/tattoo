@@ -44,7 +44,7 @@ Create a json config file with `branch-config` and/or `wctflags` keys:
 ```
 Then run:
 ```
-tattoo -t paper-button -t paper-behaviors
+tattoo
 ```
 
 
