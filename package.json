@@ -9,10 +9,10 @@
   "scripts": {
     "test": "tslint *.ts custom_typings/*.ts",
     "build": "tsc",
-    "tattoo": "node  lib/tattoo.js",
+    "tattoo": "node lib/tattoo.js",
     "build:watch": "tsc -w",
     "test:watch": "watch 'npm test' ./",
-    "prepublish": "typings install && npm run build"
+    "prepublish": "npm run build"
   },
   "repository": {
     "type": "git",
@@ -42,8 +42,10 @@
     "semver": "^5.1.0"
   },
   "devDependencies": {
-    "typescript": "^1.9.0-dev.20160418",
-    "typings": "^0.6.8",
+    "@types/progress": "^1.1.8",
+    "@types/rimraf": "",
+    "@types/semver": "^5.1.0",
+    "typescript": "^2.0.3",
     "watch": "^0.17.1"
   },
   "optionalDependencies": {
