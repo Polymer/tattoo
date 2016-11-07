@@ -167,17 +167,30 @@ Generate a token here:   https://github.com/settings/tokens
   process.exit(1);
 }
 
-
-
 const github = connectToGithub();
 
 const progressMessageWidth = 40;
 const progressBarWidth = 45;
 
+function isRedirect(repo: GitHub.Repo): boolean {
+  return !!(repo['meta'] && repo['meta']['status'].match(/^301\b/));
+}
+
 function getRepo(user: string, repo: string): Promise<GitHub.Repo> {
   return promisify(github.repos.get)({
     user: user,
     repo: repo
+  }).then((response) => {
+    // TODO(usergenic): Patch to _handle_ redirects and/or include
+    // details in error messaging.  This was encountered because we
+    // tried to request Polymer/hydrolysis which has been renamed to
+    // Polymer/polymer-analyzer.
+    if (isRedirect(response)) {
+      console.log('Repo ${user}/${repo} has moved permanently.');
+      console.log(response);
+      throw(`Repo ${user}/${repo} could not be loaded.`);
+    }
+    return response;
   });
 }
 
@@ -225,7 +238,7 @@ async function getRepos(): Promise<GitHub.Repo[]> {
 
     // Add in necessary testing repos
     // TODO(garlicnation): detect from bower.json
-    repos.push(await getRepo("Polymer", "hydrolysis"));
+    repos.push(await getRepo("Polymer", "polymer-analyzer"));
     repos.push(await getRepo("PolymerElements", "iron-image"));
     repos.push(await getRepo("PolymerLabs", "promise-polyfill"));
     repos.push(await getRepo("webcomponents", "webcomponentsjs"));
@@ -482,7 +495,9 @@ async function _main(elements: ElementRepo[]) {
     // TODO(garlicnation): Checkout branch of a repository.
     promises.push(repoPromise);
   }
-  elements.push(...await promiseAllWithProgress(promises, "Cloning repos..."));
+
+  elements.push.apply(elements,
+      (await promiseAllWithProgress(promises, "Cloning repos...")));
 
   fs.writeFileSync("repos/.bowerrc", JSON.stringify({directory: "."}));
   const bowerCmd = resolve.sync("bower");

@@ -3,33 +3,21 @@
         "target": "es6",
         "module": "commonjs",
         "moduleResolution": "node",
-        "isolatedModules": true,
-        "declaration": false,
-        "noImplicitAny": true,
+        "noUnusedLocals": false,
+        "noUnusedParameters": false,
+        "noImplicitThis": true,
+        "declaration": true,
+        "sourceMap": true,
+        "pretty": true,
+        "noImplicitAny": false,
         "removeComments": false,
         "preserveConstEnums": true,
         "suppressImplicitAnyIndexErrors": true,
-        "outDir": "lib"
+        "outDir": "./lib",
+        "lib": ["es2017"]
     },
-    "files": [
-        "custom_typings/bottleneck.d.ts",
-        "custom_typings/command-line-args.d.ts",
-        "custom_typings/github.d.ts",
-        "custom_typings/hydrolysis.d.ts",
-        "custom_typings/main.d.ts",
-        "custom_typings/nodegit.d.ts",
-        "custom_typings/pad.d.ts",
-        "custom_typings/promisify-node.d.ts",
-        "custom_typings/resolve.d.ts",
-        "src/element-repo.ts",
-        "src/tattoo.ts",
-        "src/test-result.ts",
-        "src/latest-release.ts",
-        "src/test.ts",
-        "src/util.ts",
-        "typings/main.d.ts"
-    ],
-    "atom": {
-        "rewriteTsconfig": true
-    }
+    "include": [
+        "src/**/*.ts",
+        "custom_typings/*.d.ts"
+    ]
 }
