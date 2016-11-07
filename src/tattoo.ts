@@ -482,7 +482,9 @@ async function _main(elements: ElementRepo[]) {
     // TODO(garlicnation): Checkout branch of a repository.
     promises.push(repoPromise);
   }
-  elements.push(...await promiseAllWithProgress(promises, "Cloning repos..."));
+
+  elements.push.apply(elements,
+      (await promiseAllWithProgress(promises, "Cloning repos...")));
 
   fs.writeFileSync("repos/.bowerrc", JSON.stringify({directory: "."}));
   const bowerCmd = resolve.sync("bower");
