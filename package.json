@@ -7,7 +7,7 @@
     "tattoo": "lib/tattoo.js"
   },
   "scripts": {
-    "format": "find src test | grep '\\.js$\\|\\.ts$' | xargs ./node_modules/.bin/clang-format --style=file -i",
+    "format": "find src | grep '\\.ts$' | xargs clang-format --style=file -i",
     "test": "tslint *.ts custom_typings/*.ts",
     "build": "tsc",
     "tattoo": "node lib/tattoo.js",
