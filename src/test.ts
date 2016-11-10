@@ -12,23 +12,24 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
-"use strict";
+'use strict';
 
-import {ElementRepo} from "./element-repo";
-import {TestResult, TestResultValue} from "./test-result";
-import {existsSync} from "./util";
+import {ElementRepo} from './element-repo';
+import {TestResult, TestResultValue} from './test-result';
+import {existsSync} from './util';
 
-import * as child_process from "child_process";
-import * as path from "path";
-import * as resolve from "resolve";
+import * as child_process from 'child_process';
+import * as path from 'path';
+import * as resolve from 'resolve';
 
 class CompletedProcess {
   status: TestResultValue;
   stdout: string;
   stderr: string;
-  constructor (args: {status: TestResultValue, stdout?: string, stderr?: string}) {
+  constructor(args:
+                  {status: TestResultValue, stdout?: string, stderr?: string}) {
     if (args.status == null) {
-      throw new Error("status must not be null.");
+      throw new Error('status must not be null.');
     }
     this.status = args.status;
     this.stdout = args.stdout;
@@ -36,47 +37,46 @@ class CompletedProcess {
   }
 }
 
-type ProcessResult = CompletedProcess | Error;
+type ProcessResult = CompletedProcess|Error;
 
-export async function test(element: ElementRepo, flags: string[]): Promise<TestResult> {
+export async function test(
+    element: ElementRepo, flags: string[]): Promise<TestResult> {
   const dir = element.dir;
   let testValue: TestResultValue;
   let testOutput: string;
-  const wctCommand = "wct";
-  let spawnWct = new Promise<ProcessResult>(
-    (resolve, reject) => {
-      const exists = existsSync(path.join(element.dir, "test"));
-      if (!exists) {
-        resolve(new CompletedProcess({status: TestResultValue.skipped}));
-        return;
-      }
-      const spawnParams = {
-        cwd: element.dir
-      };
-      // Something about the buffering or VM reuse of child_process.exec
-      // interacts extraordinarily poorly with wct, forcing the use
-      // of child_process.spawn.
+  const wctCommand = 'wct';
+  let spawnWct = new Promise<ProcessResult>((resolve, reject) => {
+    const exists = existsSync(path.join(element.dir, 'test'));
+    if (!exists) {
+      resolve(new CompletedProcess({status: TestResultValue.skipped}));
+      return;
+    }
+    const spawnParams = {cwd: element.dir};
+    // Something about the buffering or VM reuse of child_process.exec
+    // interacts extraordinarily poorly with wct, forcing the use
+    // of child_process.spawn.
 
-      const child = child_process.spawn(wctCommand, flags, spawnParams);
-      let output = "";
-      child.stdout.on("data", (data: Buffer | string) => {
-          output += data;
-      });
-      child.on("exit", (code: number) => {
-        const value =
-            code === 0 ? TestResultValue.passed : TestResultValue.failed;
-        resolve(new CompletedProcess({status: value, stdout: output}));
-      });
-      child.on("error", (err: Error) => {
-        console.log(output);
-        reject(err);
-      });
+    const child = child_process.spawn(wctCommand, flags, spawnParams);
+    let output = '';
+    child.stdout.on('data', (data: Buffer | string) => {
+      output += data;
+    });
+    child.on('exit', (code: number) => {
+      const value =
+          code === 0 ? TestResultValue.passed : TestResultValue.failed;
+      resolve(new CompletedProcess({status: value, stdout: output}));
+    });
+    child.on('error', (err: Error) => {
+      console.log(output);
+      reject(err);
+    });
   });
   let flakeRuns = 2;
   let wctStatus = await spawnWct;
   while (flakeRuns > 0) {
     flakeRuns--;
-    if (wctStatus instanceof CompletedProcess && wctStatus.status === TestResultValue.failed) {
+    if (wctStatus instanceof CompletedProcess &&
+        wctStatus.status === TestResultValue.failed) {
       wctStatus = await spawnWct;
     } else {
       break;
@@ -92,9 +92,5 @@ export async function test(element: ElementRepo, flags: string[]): Promise<TestR
     testStatus = wctStatus.status;
     output = wctStatus.stdout;
   }
-  return {
-    result: testStatus,
-    output: output,
-    elementRepo: element
-  };
+  return {result: testStatus, output: output, elementRepo: element};
 }

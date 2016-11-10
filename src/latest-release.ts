@@ -1,11 +1,9 @@
-import * as nodegit from "nodegit";
-import * as semver from "semver";
+import * as nodegit from 'nodegit';
+import * as semver from 'semver';
 
 
 export async function checkoutLatestRelease(
-    repo: nodegit.Repository,
-    dir?: string)
-        : Promise<nodegit.Repository> {
+    repo: nodegit.Repository, dir?: string): Promise<nodegit.Repository> {
   const tags = await nodegit.Tag.list(repo);
   let latestRelease: string;
   if (tags && tags.length > 0) {
@@ -20,6 +18,7 @@ export async function checkoutLatestRelease(
     return repo;
   }
   let commit: nodegit.Commit = await repo.getReferenceCommit(latestRelease);
-  repo.setHeadDetached(commit.id(), repo.defaultSignature(), "Checkout: HEAD " + commit.id());
+  repo.setHeadDetached(
+      commit.id(), repo.defaultSignature(), 'Checkout: HEAD ' + commit.id());
   return repo;
 }

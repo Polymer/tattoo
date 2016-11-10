@@ -11,11 +11,11 @@
  * subject to an additional IP rights grant found at
  * http://polymer.github.io/PATENTS.txt
  */
-"use strict";
+'use strict';
 
-import {Repo} from "github";
-import {Analyzer} from "hydrolysis";
-import * as nodegit from "nodegit";
+import {Repo} from 'github';
+import {Analyzer} from 'hydrolysis';
+import * as nodegit from 'nodegit';
 
 export class ElementRepo {
   constructor(args: {
