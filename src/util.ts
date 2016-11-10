@@ -11,7 +11,7 @@
  * subject to an additional IP rights grant found at
  * http://polymer.github.io/PATENTS.txt
  */
-import * as fs from "fs";
+import * as fs from 'fs';
 
 /**
  * Synchronously determines whether the given file exists.
@@ -25,7 +25,8 @@ export function existsSync(fn: string): boolean {
  */
 export function isDirSync(fn: string): boolean {
   const stats = safeStatSync(fn);
-  if (stats == null) return false;
+  if (stats == null)
+    return false;
   return stats.isDirectory();
 }
 

@@ -7,6 +7,7 @@
     "tattoo": "lib/tattoo.js"
   },
   "scripts": {
+    "format": "find src test | grep '\\.js$\\|\\.ts$' | xargs ./node_modules/.bin/clang-format --style=file -i",
     "test": "tslint *.ts custom_typings/*.ts",
     "build": "tsc",
     "tattoo": "node lib/tattoo.js",
@@ -45,6 +46,7 @@
     "@types/progress": "^1.1.8",
     "@types/rimraf": "^0.0.28",
     "@types/semver": "^5.1.0",
+    "clang-format": "=1.0.45",
     "typescript": "^2.0.3",
     "watch": "^0.17.1"
   },
