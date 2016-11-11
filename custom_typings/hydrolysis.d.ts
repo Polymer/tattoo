@@ -1,4 +1,4 @@
-declare module "hydrolysis" {
+declare module 'hydrolysis' {
   interface Options {
     filter?: (path: string) => boolean;
   }
