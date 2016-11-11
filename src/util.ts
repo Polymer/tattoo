@@ -12,6 +12,11 @@
  * http://polymer.github.io/PATENTS.txt
  */
 import * as fs from 'fs';
+import * as pad from 'pad';
+import * as ProgressBar from 'progress';
+
+const progressMessageWidth = 40;
+const progressBarWidth = 45;
 
 /**
  * Synchronously determines whether the given file exists.
@@ -39,4 +44,34 @@ export function safeStatSync(fn: string): fs.Stats {
   } catch (_) {
     return null;
   }
+}
+
+/**
+ * Like Promise.all, but also displays a progress bar that fills as the
+ * promises resolve. The label is a helpful string describing the operation
+ * that the user is waiting on.
+ */
+export function promiseAllWithProgress<T>(
+    promises: Promise<T>[], label: string): Promise<T[]> {
+  const progressBar = standardProgressBar(label, promises.length);
+  const progressed: Promise<T>[] = [];
+  for (const promise of promises) {
+    let res: T;
+    progressed.push(Promise.resolve(promise)
+                        .then((resolution) => {
+                          res = resolution;
+                          return progressBar.tick();
+                        })
+                        .then(() => res));
+  }
+  return Promise.all(progressed);
+}
+
+export function standardProgressBar(label: string, total: number) {
+  const pb = new ProgressBar(
+      `${pad(label, progressMessageWidth)} [:bar] :percent`,
+      {total, width: progressBarWidth});
+  // force the progress bar to start at 0%
+  pb.render();
+  return pb;
 }

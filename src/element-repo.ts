@@ -13,14 +13,14 @@
  */
 'use strict';
 
-import {Repo} from 'github';
+import * as github from 'github';
 import {Analyzer} from 'hydrolysis';
 import * as nodegit from 'nodegit';
 
 export class ElementRepo {
   constructor(args: {
     dir: string,
-    ghRepo: Repo,
+    ghRepo: github.Repo,
     repo: nodegit.Repository,
     analyzer: Analyzer
   }) {
@@ -40,7 +40,7 @@ export class ElementRepo {
   /**
    * Metadata about the elements' github repo.
    */
-  ghRepo: Repo;
+  ghRepo: github.Repo;
 
   /**
    * The git repo to commit to.
@@ -57,27 +57,6 @@ export class ElementRepo {
    * If true, commits made to the repo will be pushed.
    */
   dirty: boolean = false;
-
-  private _needsReview: boolean = false;
-  /**
-   * True if the changes need human review.
-   *
-   * If true, all changes made to the element will go out into a PR that
-   * will be assigned to you. Otherwise the changes will be pushed directly
-   * to master. Has no effect if dirty is false.
-   *
-   * Once set to true, it cannot be set to false.
-   */
-  get needsReview(): boolean {
-    return this._needsReview;
-  }
-
-  /**
-   * Set needs review to true.
-   */
-  setNeedsReview() {
-    this._needsReview = true;
-  }
 
   pushStatus: PushStatus = PushStatus.unpushed;
 }
