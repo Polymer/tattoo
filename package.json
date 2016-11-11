@@ -46,7 +46,6 @@
     "@types/progress": "^1.1.8",
     "@types/rimraf": "^0.0.28",
     "@types/semver": "^5.1.0",
-    "chai": "^2.2.0",
     "clang-format": "=1.0.45",
     "tslint": "^3.10.2",
     "typescript": "^2.0.3",
