@@ -1,4 +1,4 @@
-declare module "pad" {
+declare module 'pad' {
   interface Options {
     strip: boolean;
   }
