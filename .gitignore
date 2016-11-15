@@ -2,8 +2,9 @@ rerun.sh
 .DS_Store
 .github-cachedb
 *.map
+lib
 node_modules
-token
+github-token
 repos
 *.js
 typings
