@@ -11,10 +11,16 @@
  * subject to an additional IP rights grant found at
  * http://polymer.github.io/PATENTS.txt
  */
+
 import * as fs from 'fs';
 import * as pad from 'pad';
 import * as ProgressBar from 'progress';
 
+// TODO(usergenic): import doesn't seem to work for escape-string-regexp.
+const escapeStringRegexp = require('escape-string-regexp');
+
+// TODO(usergenic): Replace magic numbers with configurable or
+// viewport-dimension-derived values.
 const progressMessageWidth = 40;
 const progressBarWidth = 45;
 
@@ -67,11 +73,28 @@ export function promiseAllWithProgress<T>(
   return Promise.all(progressed);
 }
 
+/**
+ * Factory function for Progress Bar instance establishing conventional label
+ * and progress number format.
+ */
 export function standardProgressBar(label: string, total: number) {
-  const pb = new ProgressBar(
-      `${pad(label, progressMessageWidth)} [:bar] :percent`,
-      {total, width: progressBarWidth});
+  const pb =
+      new ProgressBar(`:msg [:bar] :percent`, {total, width: progressBarWidth});
+  pb.tick({msg: label});
   // force the progress bar to start at 0%
   pb.render();
   return pb;
+}
+
+export function progressMessage(msg: string): string {
+  return pad(msg, progressMessageWidth, {strip: true});
+}
+
+/**
+ * @returns a regular expression where all '*' characters in provided pattern
+ * match any character but all other characters in pattern match only string
+ * literals.
+ */
+export function wildcardRegExp(pattern: string): RegExp {
+  return new RegExp(escapeStringRegexp(pattern).replace(/\\\*/g, '.*'));
 }

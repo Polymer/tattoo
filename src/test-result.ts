@@ -13,14 +13,12 @@
  */
 'use strict';
 
-import {ElementRepo} from './element-repo';
+import {WorkspaceRepo} from './workspace';
 
 export interface TestResult {
   result: TestResultValue;
-
   output: string;
-
-  elementRepo: ElementRepo;
+  workspaceRepo: WorkspaceRepo;
 }
 
 export enum TestResultValue {

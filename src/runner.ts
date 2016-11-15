@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * @license
  * Copyright (c) 2016 The Polymer Project Authors. All rights reserved.
@@ -26,46 +25,109 @@ import * as fs from 'fs';
 import * as hydrolysis from 'hydrolysis';
 import * as GitHub from 'github';
 import * as nodegit from 'nodegit';
+import * as pad from 'pad';
 import * as path from 'path';
 import * as promisify from 'promisify-node';
 import * as rimraf from 'rimraf';
 import * as resolve from 'resolve';
 
-import {ElementRepo, PushStatus} from './element-repo';
-import * as gitUtil from './git-util';
-import * as model from './model';
-import {test} from './test';
+import * as git from './git';
+// import {test} from './test';
 import {TestResult, TestResultValue} from './test-result';
 import * as util from './util';
+import {Workspace, WorkspaceRepo} from './workspace';
 
-export class Tattoo {
+/**
+ * RunnerOptions contains all configuration used when constructing an instance
+ * of the Runner.
+ */
+export interface RunnerOptions {
+  // An array of repo expressions for filtering out repos to load.
+  excludeRepos?: string[];
+
+  // The github token needed to use the github API.
+  githubToken: string;
+
+  // If true, each run will clone new copies of repos instead of updating those
+  // already in-place.
+  fresh?: boolean;
+
+  // If true, repo clones will be pointed towards last tagged released version
+  // instead of the default master branch.  This will not override explicit
+  // refs in the  repo expression if present.
+  latestRelease?: boolean;
+
+  // An array of repo expressions defining the set of repos to require/load
+  // but not specifically to test.
+  repos?: string[];
+
+  // An array of repo expressions representing repos to exclude from testing
+  // should any matching ones be encountered in the tests array.
+  skipTests?: string[];
+
+  // An array of repo expressions defining the set of repos to test with the
+  // web-component-tester.  Note that repos in this list do not have to be
+  // present in the repos array.
+  tests: string[];
+
+  // If true, output will information used primarily for debug purposes.
+  verbose?: boolean;
+
+  // Command-line flags to send to web-component-tester.
+  wctFlags?: string[];
+
+  // The folder to clone repositories into and run tests from.  Defaults to
+  // './repos' if not provided.
+  workspaceDir?: string;
+}
+
+export class Runner {
+  // The repository patterns we do not want to load.
   private _excludeRepos: string[];
+
+  // Always clone a fresh copy of the repository (don't just update existing
+  // clone.)
   private _fresh: boolean;
-  private _github?: gitUtil.GitHubConnection;
-  private _githubToken: string;
-  private _githubUser?: GitHub.User;
-  private _repos: model.RepoConfig[];
+
+  private _github?: git.GitHubConnection;
+  private _repos: string[];
   private _skipTests: string[];
   private _tests: string[];
   private _testRateLimiter: Bottleneck;
+  private _verbose: boolean;
   private _wctFlags: string;
-  private _workspace: model.Workspace;
+  private _workspace: Workspace;
 
   // TODO(usergenic): This constructor is getting long.  Break up some of
   // these stanzas into supporting methods.
-  constructor(options: model.Options) {
-    this._loadConfigFile(options);
-    this._setGitHubToken(options);
+  constructor(options: RunnerOptions) {
+    this._excludeRepos = options.excludeRepos || [];
+    this._fresh = !!options.fresh;
+    // TODO(usergenic): Pass an option to gitUtil.connectToGitHub for the
+    // rate limiter it uses.
+    this._github = new git.GitHubConnection(options.githubToken);
+    this._repos = options.repos || [];
+    this._skipTests = options.skipTests || [];
+    this._tests = options.tests || [];
+    this._verbose = !!options.verbose;
+    this._wctFlags = options.wctFlags ? options.wctFlags.join(' ') : '';
+    this._workspace = {dir: (options.workspaceDir || './repos'), repos: {}};
 
-    this._excludeRepos = options['exclude-repo'] ? options['exclude-repo'] : [];
-    this._fresh = !!options['fresh'];
-    this._repos = options['repo'] ? options['repo'] : [];
-    this._skipTests = options['skip-test'] ? options['skip-test'] : [];
-    this._tests = options['test'] ? options['test'] : [];
-    this._wctFlags = options['wct-flags'] ? options['wct-flags'].join(' ') : '';
-    this._workspace = {dir: (options['workspace-dir'] || './repos'), repos: {}};
     // TODO(usergenic): Rate limit should be an option.
     this._testRateLimiter = new Bottleneck(1, 100);
+
+    if (this._verbose) {
+      console.log('Tattoo Runner configuration:');
+      console.log({
+        excludeRepos: this._excludeRepos,
+        fresh: this._fresh,
+        repos: this._repos,
+        skipTests: this._skipTests,
+        tests: this._tests,
+        wctFlags: this._wctFlags,
+        workspaceDir: this._workspace.dir
+      });
+    }
   }
 
   /**
@@ -74,42 +136,27 @@ export class Tattoo {
    * refs.
    */
   async _cloneOrUpdateWorkspaceRepos() {
+    const promises: Promise<nodegit.Repository>[] = [];
+
     // Clone git repos.
     for (const name in this._workspace.repos) {
-      const repoConfig = this._workspace.repos[name];
-      /*
-      let repoPromise = this._github.cloneRepo({
-        owner: repoConfig.org,
-        name: repoConfig.repo,
-        clone_url: `git@github.com:${repoConfig.org}/${repoConfig.repo}`
-      },);
-      // TODO(garlicnation): Checkout branch of a repository.
-      promises.push(repoPromise);
-      */
+      const repo = this._workspace.repos[name];
+      promises.push(
+          this._github
+              .clone(repo.githubRepo, path.join(this._workspace.dir, repo.dir))
+              .then(
+                  (nodegitRepo) => git.checkout(
+                      nodegitRepo, repo.githubRepoRef.checkoutRef)));
     }
 
+    // TODO(usergenic): We probably want to track the set of repos completed so
+    // we can identify the problem repos in case error messages come back
+    // without enough context for users to debug.
     await util.promiseAllWithProgress(promises, 'Cloning repos...');
-    elements.push.apply(
-        elements,
-        (await util.promiseAllWithProgress(promises, 'Cloning repos...')));
-  }
-
-  /**
-   * Connect is basically an initialization routine but involves API calls to
-   * GitHub to get information about repos etc, mostly to support wildcarded
-   * RepoConfig options and identify invalid/unavailable repos.
-   */
-  async _connectToGitHub() {
-    // TODO(usergenic): Pass an option to gitUtil.connectToGitHub for the
-    // rate limiter it uses.
-    this._github = gitUtil.connectToGitHub(this._githubToken);
-
-    // Get user information for the owner of the github token.
-    this._githubUser = await this._github.getUser();
   }
 
   async _determineWorkspaceRepos() {
-    let allRepos: model.RepoConfig[] = [];
+    let allGitHubRepoRefs: git.GitHubRepoRef[] = [];
 
     // This is an index of names of owned repos so we can download the set
     // just once for each owner, in the event we have wildcard in more than
@@ -117,30 +164,30 @@ export class Tattoo {
     const reposByOwner: {[owner: string]: string[]} = {};
 
     // Add every explicit repo and every repo from expanding wildcard names.
-    for (const repo of this._repos.map(gitUtil.parseRepoExpression)) {
-      // If the repo has a name, it is an individual repo, otherwise it has a
-      // wildcard in the expression.
-      if (repo.name) {
-        allRepos.push(repo);
+    for (const githubRepoRef of this._repos.map(git.parseGitHubRepoRefString)) {
+      // If the repo has no wildcard, lets just put it in the list of all repos.
+      if (!githubRepoRef.repoName.match('*')) {
+        allGitHubRepoRefs.push(githubRepoRef);
       } else {
         // If we have not downloaded the repo names for this owner before, lets
         // do that.
-        if (!reposByOwner[repo.org]) {
-          reposByOwner[repo.org] = await this._github.getRepoNames(repo.org);
+        if (!reposByOwner[githubRepoRef.ownerName]) {
+          reposByOwner[githubRepoRef.ownerName] =
+              await this._github.getRepoNames(githubRepoRef.ownerName);
         }
+
+        const repoNameRegExp = util.wildcardRegExp(githubRepoRef.repoName);
+
         // Loop through all the names of the repos for the owner and add
         // RepoConfigs to the allRepos list for every matching one.
-        allRepos.push.apply(
-            allRepos,
-            reposByOwner[repo.org]
-                .filter(
-                    name =>
-                        name.match(new RegExp(repo.repo.replace(/\*/, '.*'))))
+        allGitHubRepoRefs.push.apply(
+            allGitHubRepoRefs,
+            reposByOwner[githubRepoRef.ownerName]
+                .filter(name => repoNameRegExp.test(name))
                 .map(name => ({
-                       org: repo.org,
-                       name: name,
-                       ref: repo.ref,
-                       repo: name
+                       ownerName: githubRepoRef.ownerName,
+                       checkoutRef: githubRepoRef.checkoutRef,
+                       repoName: name
                      })));
       }
     }
@@ -148,14 +195,25 @@ export class Tattoo {
     // TODO(usergenic): Maybe we should be obtaining the package name here
     // from the repository's bower.json or package.json.
 
-    // TODO(usergenic): Filter out any repos referenced in exclude option.
     for (const exclude of this._excludeRepos) {
-      // TODO(usergenic): Support wildcards in excludes.
-      // TODO(usergenic): Since excludes don't support wildcards, this match
-      // is going to be greedy such that "iron" will match "iron-list" and
-      // "iron-image" etc.  Work around is to follow with # like "/iron-list#"
-      allRepos = allRepos.filter(
-          repo => !gitUtil.serializeRepoConfig(repo).match(exclude));
+      const excludeRepoRef = git.parseGitHubRepoRefString(exclude);
+      const excludeOwnerRegExp = util.wildcardRegExp(excludeRepoRef.ownerName);
+      const excludeRepoRegExp = util.wildcardRegExp(excludeRepoRef.repoName);
+      const excludeCheckoutRegExp = excludeRepoRef.checkoutRef ?
+          util.wildcardRegExp(excludeRepoRef.checkoutRef) :
+          undefined;
+
+      allGitHubRepoRefs = allGitHubRepoRefs.filter((repo) => {
+        if (!excludeOwnerRegExp.test(repo.ownerName) ||
+            !excludeRepoRegExp.test(repo.repoName)) {
+          return false;
+        }
+        if (typeof excludeCheckoutRegExp !== 'undefined') {
+          return typeof repo.checkoutRef !== 'undefined' &&
+              excludeCheckoutRegExp.test(repo.checkoutRef);
+        }
+        return true;
+      });
     }
 
     // NOTE(usergenic): We might need this here.  The old repo list included
@@ -163,121 +221,75 @@ export class Tattoo {
     // allRepos.push(gitUtil.parseRepoExpression('Polymer/polymer-analyzer'));
 
     // Build the map of repos by name
-    for (const repoConfig of allRepos) {
+    for (const repoRef of allGitHubRepoRefs) {
       // TODO(usergenic): This error is a bit strict and also doesn't reveal
       // enough data to help troubleshoot.  I.e. what is the full config of
       // the existing repo.  Update this message.
-      if (this._workspace.repos[repoConfig.name]) {
-        throw(`More than repo with name '${repoConfig.name}' defined.`);
+      if (this._workspace.repos[repoRef.repoName]) {
+        throw(`More than repo with name '${repoRef.repoName}' defined.`);
       }
 
-      this._workspace.repos[repoConfig.name] = repoConfig;
+      this._workspace.repos[repoRef.repoName] = {
+        githubRepoRef: repoRef,
+        dir: repoRef.repoName
+      };
     }
   }
 
-  _loadConfigFile(options: model.Options) {
-    if (!options['config-file']) {
-      return;
-    }
-
-    const configFile = options['config-file'];
-    let cfOptions: model.ConfigFileOptions;
-
-    try {
-      if (fs.lstatSync(configFile)) {
-        // TODO(usergenic): Test for file presence and provide proper error
-        // message.
-        cfOptions = JSON.parse(fs.readFileSync(configFile, 'utf8'));
-      }
-    } catch (err) {
-      if (err.code === 'ENOENT') {
-        return;
-      }
-      throw(err);
-    }
-
-    function mergeArray(name: string) {
-      if (typeof cfOptions[name] !== 'undefined') {
-        // Fix values that aren't in Array.
-        if (typeof cfOptions[name] === 'string') {
-          cfOptions[name] = [cfOptions[name]];
-        }
-        options[name].push.apply(options[name], cfOptions[name]);
-      }
-    }
-
-    function mergeBasic(name: string, type: string) {
-      if ((typeof cfOptions[name] === type) &&
-          (typeof options[name] !== type)) {
-        options[name] = cfOptions[name];
-      }
-    }
-
-    mergeArray('exclude-repo');
-    mergeBasic('github-token', 'string');
-    mergeBasic('fresh', 'boolean');
-    mergeBasic('latest-release', 'boolean');
-    mergeArray('repo');
-    mergeArray('skip-test');
-    mergeArray('test');
-    mergeBasic('verbose', 'boolean');
-    mergeArray('wct-flags');
-    mergeBasic('workspace-dir', 'string');
-  }
-
+  /**
+   * Cleans up the workspace folder and fixes repos which may be in incomplete
+   * or bad state due to prior abended runs.
+   */
   async _prepareWorkspaceFolder() {
-    // TODO(usergenic): Maybe allow for a configurable directory to clone the
-    // repos into.
+    const workspaceDir = this._workspace.dir;
 
     // Clean up repos when 'fresh' option is true.
     if (this._fresh) {
-      await promisify(rimraf)('repos');
+      await promisify(rimraf)(workspaceDir);
     }
 
     // Ensure repos folder exists.
-    if (!util.existsSync('repos')) {
-      fs.mkdirSync('repos');
+    if (!util.existsSync(workspaceDir)) {
+      fs.mkdirSync(workspaceDir);
     }
 
     // Sometimes a repo will be left in a bad state. Deleting it here
     // will let it get cleaned up later.
-    for (let dir of fs.readdirSync('repos')) {
-      const repoDir = path.join('repos', dir);
+    for (let dir of fs.readdirSync(workspaceDir)) {
+      const repoDir = path.join(workspaceDir, dir);
       if (!util.isDirSync(repoDir) || fs.readdirSync(repoDir).length === 1) {
         await promisify(rimraf)(repoDir);
       }
     }
   }
 
-  _setGitHubToken(options: model.Options) {
-    // TODO(usergenic): Maybe support GITHUB_TOKEN as an environment variable.
-    if (options['github-token']) {
-      this._githubToken = options['github-token'];
-    } else {
-      try {
-        this._githubToken = fs.readFileSync('github-token', 'utf8').trim();
-      } catch (e) {
-        console.error(`
-  You need to create a github token and place it in a file named 'github-token'.
-  The token only needs the 'public repos' permission.
-
-  Generate a token here:   https://github.com/settings/tokens
-      `);
-        process.exit(1);
-      }
-    }
+  /**
+   * All repos specified by tests option will be run through wct.
+   */
+  async _testAllTheThings(): Promise<TestResult[]> {
+    return [];
   }
 
-  async _testAllTheThings() {
+  async _reportTestResults(testResults: TestResult[]) {
   }
 
+  /**
+   * Works through the sequence of operation, steps in the sequence are
+   * encapsulated for clarity but each typically have side-effects on file
+   * system or on workspace.
+   * TODO(usergenic): Support a --dry-run option.
+   */
   async run() {
-    await this._connectToGitHub();
+    // Workspace repo map is empty until we determine what they are.
     await this._determineWorkspaceRepos();
+    // Clean up the workspace folder and prepare it for repo clones.
     await this._prepareWorkspaceFolder();
+    // Update in-place and/or clone repositories from GitHub.
     await this._cloneOrUpdateWorkspaceRepos();
-    await this._testAllTheThings();
-    // TODO(usergenic): Support a --dry-run option.
+    // Run all the tests.
+    const testResults = await this._testAllTheThings();
+    // Report test results.
+    this._reportTestResults(testResults);
   }
 }
 
@@ -285,7 +297,6 @@ export class Tattoo {
 /**
  * Returns a Promise of a list of Polymer github repos to automatically
  * cleanup / transform.
- */
 async function getRepos():
     Promise<GitHub.Repo[]> {
       const per_page = 100;
@@ -355,27 +366,7 @@ async function getRepos():
       }
       return dedupedRepos;
     }
-
-
-let elementsPushed = 0;
-let pushesDenied = 0;
-/**
- * Will return true at most opts.max_changes times. After that it will always
- * return false.
- *
- * Counts how many times both happen.
- * TODO(rictic): this should live in a class rather than as globals.
- */
-function pushIsAllowed() {
-  if (elementsPushed < opts.max_changes) {
-    elementsPushed++;
-    return true;
-  }
-  pushesDenied++;
-  return false;
-}
-
-
+**/
 
 /**
  * Analyzes all of the HTML in 'repos/*' with hydrolysis.
@@ -411,27 +402,24 @@ async function analyzeRepos() {
   const analyzer =
       await hydrolysis.Analyzer.analyze('repos/polymer/polymer.html', {filter});
 
-  const progressBar = new ProgressBar(
-      `:msg [:bar] :percent`,
-      {total: htmlFiles.length + 1, width: progressBarWidth});
+  const progressBar =
+      util.standardProgressBar('Analyzing...', htmlFiles.length + 1);
 
   for (const htmlFile of htmlFiles) {
     await analyzer.metadataTree(htmlFile);
-    const msg = pad(
-        `Analyzing ${htmlFile.slice(6)}`, progressMessageWidth, {strip: true});
-    progressBar.tick({msg});
+    progressBar.tick(
+        {msg: util.progressMessage(`Analyzing ${htmlFile.slice(6)}`)});
   }
 
-
-  progressBar.tick(
-      {msg: pad('Analyzing with hydrolysis...', progressMessageWidth)});
+  progressBar.tick({msg: util.progressMessage('Analyzing with hydrolysis...')});
   analyzer.annotate();
   return analyzer;
 }
 
+/**
 async function _main(elements: ElementRepo[]) {
-  tattoo.connect();
-  tattoo.cloneOrUpdateAllTheRepos();
+  runner.connect();
+  runner.cloneOrUpdateAllTheRepos();
 
   const promises: Promise<ElementRepo>[] = [];
 
@@ -515,3 +503,4 @@ async function _main(elements: ElementRepo[]) {
     fs.writeFileSync('rerun.sh', rerun, {mode: 0o700});
   }
 }
+**/

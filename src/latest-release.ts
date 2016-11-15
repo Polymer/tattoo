@@ -1,7 +1,6 @@
 import * as nodegit from 'nodegit';
 import * as semver from 'semver';
 
-
 export async function checkoutLatestRelease(
     repo: nodegit.Repository, dir?: string): Promise<nodegit.Repository> {
   const tags = await nodegit.Tag.list(repo);

@@ -25,39 +25,47 @@ import * as nodegit from 'nodegit';
 import * as path from 'path';
 import * as promisify from 'promisify-node';
 
-import {ElementRepo} from './element-repo';
-import {checkoutLatestRelease} from './latest-release';
-import {BranchConfig, RepoConfig} from './model';
+// import {checkoutLatestRelease} from './latest-release';
 import * as util from './util';
 
-export function connectToGitHub(token: string): GitHubConnection {
-  return new GitHubConnection(token);
+/**
+ * Represents GitHub repository + optional specific branch/ref requested by the
+ * tattoo user.
+ */
+export interface GitHubRepoRef {
+  // The branch name or SHA of the commit to checkout in the clone.
+  checkoutRef?: string;
+
+  // The name of the org or user who owns the repo on GitHub.
+  ownerName?: string;
+
+  // The name of the repo on GitHub.
+  repoName?: string;
 }
 
+/**
+ * GitHubConnection is a wrapper class for the GitHub npm package that
+ * assumes action as-a-user, and a minimal set of supported API calls (mostly
+ * to do with listing and cloning owned repos) using a token and building in
+ * rate-limiting functionality using the Bottleneck library to throttle API
+ * consumption.
+ */
 export class GitHubConnection {
   private _cloneOptions: nodegit.CloneOptions;
   private _cloneRateLimiter: Bottleneck;
   private _github: GitHub;
   private _token: string;
-
-  get repos() {
-    return this._github.repos;
-  }
-
-  get user() {
-    return this._github.user;
-  }
+  private _user: GitHub.User;
 
   constructor(token: string) {
-    const github = new GitHub({
+    this._token = token;
+    this._github = new GitHub({
       version: '3.0.0',
       protocol: 'https',
     });
-
-    github.authenticate({type: 'oauth', token: token});
-
+    this._github.authenticate({type: 'oauth', token: token});
+    // TODO: Make the arguments to rate limiter configurable.
     this._cloneRateLimiter = new Bottleneck(20, 100);
-    this._github = github;
     this._cloneOptions = {
       fetchOpts: {
         callbacks: {
@@ -72,14 +80,27 @@ export class GitHubConnection {
     };
   }
 
-  async cloneRepo(ghRepo: GitHub.Repo, branchConfig: BranchConfig):
-      Promise<ElementRepo> {
-    const dir = path.join('repos', ghRepo.name);
-    let repo: nodegit.Repository;
-    if (util.existsSync(dir)) {
+  // HACK: Don't expose repos, create the necessary methods to operate on them.
+  get repos() {
+    return this._github.repos;
+  }
+
+  // HACK: Don't expose user, create the necessary methods to operate on them.
+  get user() {
+    return this._github.user;
+  }
+
+  /**
+   * Given a github repository and a directory to clone it into, return an
+   * ElementRepo once it has been cloned and checked out.
+   */
+  async clone(githubRepo: GitHub.Repo, cloneDir: string):
+      Promise<nodegit.Repository> {
+    let nodegitRepo: nodegit.Repository;
+    if (util.existsSync(cloneDir)) {
       let updatedRepo: nodegit.Repository;
-      repo =
-          await nodegit.Repository.open(dir)
+      nodegitRepo =
+          await nodegit.Repository.open(cloneDir)
               .then((repo) => {
                 updatedRepo = repo;
                 return this._cloneRateLimiter.schedule(
@@ -90,23 +111,12 @@ export class GitHubConnection {
       // Potential race condition if multiple repos w/ the same name are
       // checked
       // out simultaneously.
-      repo = await this._cloneRateLimiter.schedule(() => {
-        return nodegit.Clone.clone(ghRepo.clone_url, dir, this._cloneOptions);
+      nodegitRepo = await this._cloneRateLimiter.schedule(() => {
+        return nodegit.Clone.clone(
+            githubRepo.clone_url, cloneDir, this._cloneOptions);
       });
     }
-    let repoConfig = branchConfig[ghRepo.name];
-    if (repoConfig && (repoConfig['branch'] || repoConfig['ref'])) {
-      const ref = repoConfig['branch'] || repoConfig['ref'];
-      repo = await checkoutBranch(repo, ref);
-      // TODO(usergenic): Consider adding a 'released' concept to the git repo
-      // shorthand convention.
-      // } else if (opts['released']) {
-      //  repo = await checkoutLatestRelease(repo, dir);
-    } else {
-      repo = await checkoutBranch(repo, 'master');
-    }
-
-    return new ElementRepo({repo, dir, ghRepo, analyzer: null});
+    return nodegitRepo;
   }
 
   /**
@@ -154,9 +164,10 @@ export class GitHubConnection {
   }
 
   /**
-   * @returns the current user info from github.
+   * @returns the current user info from GitHub.  The current user is
+   * determined by the token being used.
    */
-  async getUser(): Promise<GitHub.User> {
+  async getCurrentUser(): Promise<GitHub.User> {
     return promisify(this._github.user.get)({});
   }
 }
@@ -164,64 +175,50 @@ export class GitHubConnection {
 /**
  * Checks out a branch with a given name on a repo.
  *
- * returns a promise of the nodegit Branch object for the new branch.
+ * @returns the nodegit Branch object for the new branch.
  */
-export async function checkoutBranch(
-    repo: nodegit.Repository, branchName: string): Promise<nodegit.Repository> {
+export async function checkout(
+    nodegitRepo: nodegit.Repository,
+    checkoutRef: string): Promise<nodegit.Repository> {
+  const cwd = nodegitRepo.workdir();
   return new Promise<nodegit.Repository>(
       (resolve, reject) => (child_process.exec(
-          'git checkout ' + branchName,
-          {cwd: repo.workdir()},
+          `git checkout ${checkoutRef}`,
+          {cwd: cwd},
           (error, stdout, stderr) => {
             if (error) {
-              console.log(
-                  'Error checkout out ' + branchName + 'in : ' +
-                  repo.workdir());
+              console.log(`Error checking out ${checkoutRef} in : ${cwd}`);
             }
-            resolve(repo);
+            resolve(nodegitRepo);
           })));
 }
 
 /**
- * @returns a string representation of a RepoConfig of the form:
+ * @returns a string representation of a RepoRef of the form:
  *     "name:org/repo#ref"
  */
-export function serializeRepoConfig(repo: RepoConfig): string {
-  const ref = repo.ref ? `#${repo.ref}` : '#';
-  return `${repo.name}:${repo.org}/${repo.repo}${ref}`;
+export function serializeGitHubRepoRef(repoRef: GitHubRepoRef): string {
+  const checkoutRef = repoRef.checkoutRef ? `#${repoRef.checkoutRef}` : '';
+  return `${repoRef.ownerName}/${repoRef.repoName}${checkoutRef}`;
 }
 
 /**
- * @returns a RepoConfig resulting from the parsed string of the form
- *     '[package:]owner/repo[#ref]' or 'owner/*[#ref]'
+ * @returns a GitHubRepoRef resulting from the parsed string of the form:
+ *     `ownerName/repoName[#checkoutRef]`
  */
-export function parseRepoExpression(exp: string): RepoConfig {
-  const hashSplit = exp.split('#');
+export function parseGitHubRepoRefString(refString: string): GitHubRepoRef {
+  const hashSplit = refString.split('#');
   const slashSplit = hashSplit[0].split('/');
-  const colonSplit = slashSplit[0].split(':').reverse();
 
-  if (slashSplit.length !== 2 || hashSplit.length > 2 ||
-      colonSplit.length > 2) {
-    throw(
-        `Repo '${exp}' is not in form user/repo, user/repo#ref, ` +
-        `package:user/repo or user/*`);
+  if (slashSplit.length !== 2 || hashSplit.length > 2) {
+    throw(`Repo '${refString}' is not in form user/repo or user/repo#ref`);
   }
 
-  const org = colonSplit[0];
+  const owner = slashSplit[0];
   const repo = slashSplit[1];
   const ref = hashSplit[1];
-  let name: string|undefined = undefined;
 
-  if (repo.match(/\*/)) {
-    if (colonSplit[1]) {
-      throw(
-          `Can not specify name ${colonSplit[1]} for a wildcard ` +
-          `repo '${exp}'.`);
-    }
-  } else {
-    name = colonSplit[1] || slashSplit[1];
-  }
-  return {org: org, repo: repo, ref: ref, name: name};
+  return {ownerName: owner, repoName: repo, checkoutRef: ref};
 }
 
 /**
