@@ -18,13 +18,37 @@ tattoo
 
 ***Test one repo***
 ```
-tattoo -t paper-input --verbose
+tattoo -t PolymerElements/paper-input
 ```
 
 ***Test two repos***
 
 ```
-tattoo -t paper-input -t paper-icon-button --verbose
+tattoo -t PolymerElements/paper-input -t PolymerElements/paper-icon-button
+```
+
+***Test all the paper repos***
+
+```
+tattoo -t PolymerElements/paper-*
+```
+
+***Test all the paper repos on a specific branch***
+
+```
+tattoo -t "PolymerElements/paper-*#2.0-preview"
+```
+
+***Test all the repos except that one***
+
+```
+tattoo -t PolymerElements/* -s PolymerElements/style-guide
+```
+
+***Test all the repos, except that one***
+
+```
+tattoo -t PolymerElements/* -s PolymerElements/style-guide
 ```
 
 ***Test repos with a config.***
@@ -34,21 +58,25 @@ Create a json config file with `branch-config` and/or `wctflags` keys:
 `tattoo_config.json`:
 ```
 {
-  "branch-config": {
-    "polymer" : "Polymer/polymer#lazy-register-extends",
-    "paper-button" : "PolymerElements/paper-button#master"
-  },
-  "wctflags": ["-b", "canary"]
+  "test": [
+    "PolymerElements/paper-button#2.0-preview"
+  ],
+  "wctflags": ["--local", "canary"]
 }
-
 ```
+
 Then run:
+
 ```
 tattoo
 ```
 
-
-***Fix broken installation***
+***Clean up installation***
 ```
 rm -rf repos
+```
+
+***Or start with a fresh workspace as part of command***
+```
+tattoo -f
 ```
