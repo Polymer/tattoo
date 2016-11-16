@@ -125,6 +125,7 @@ const cli = cliArgs([
   },
   {
     name: 'verbose',
+    alias: 'v',
     type: Boolean,
     defaultValue: false,
     description: 'Set to print output from failed tests.'

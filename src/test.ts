@@ -15,7 +15,7 @@
 'use strict';
 
 import {TestResult, TestResultValue} from './test-result';
-import {WorkspaceRepo} from './workspace';
+import {Workspace, WorkspaceRepo} from './workspace';
 import {existsSync} from './util';
 
 import * as child_process from 'child_process';
@@ -40,8 +40,9 @@ class CompletedProcess {
 type ProcessResult = CompletedProcess|Error;
 
 export async function test(
-    repo: WorkspaceRepo, flags: string[]): Promise<TestResult> {
-  const dir = repo.dir;
+    workspace: Workspace, repo: WorkspaceRepo, flags: string[]):
+    Promise<TestResult> {
+  const dir = path.join(workspace.dir, repo.dir);
   let testValue: TestResultValue;
   let testOutput: string;
   const wctCommand = 'wct';

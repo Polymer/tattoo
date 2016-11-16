@@ -59,6 +59,9 @@ export function safeStatSync(fn: string): fs.Stats {
  */
 export function promiseAllWithProgress<T>(
     promises: Promise<T>[], label: string): Promise<T[]> {
+  if (promises.length === 0) {
+    return Promise.all([]);
+  }
   const progressBar = standardProgressBar(label, promises.length);
   const progressed: Promise<T>[] = [];
   for (const promise of promises) {
@@ -78,9 +81,9 @@ export function promiseAllWithProgress<T>(
  * and progress number format.
  */
 export function standardProgressBar(label: string, total: number) {
-  const pb =
-      new ProgressBar(`:msg [:bar] :percent`, {total, width: progressBarWidth});
-  pb.tick({msg: label});
+  const pb = new ProgressBar(
+      `${pad(label, progressMessageWidth, {strip: true})} [:bar] :percent`,
+      {total, width: progressBarWidth});
   // force the progress bar to start at 0%
   pb.render();
   return pb;
@@ -96,5 +99,6 @@ export function progressMessage(msg: string): string {
  * literals.
  */
 export function wildcardRegExp(pattern: string): RegExp {
-  return new RegExp(escapeStringRegexp(pattern).replace(/\\\*/g, '.*'));
+  return new RegExp(
+      '^' + escapeStringRegexp(pattern).replace(/\\\*/g, '.*') + '$', 'i');
 }

@@ -34,13 +34,13 @@ suite('Util', () => {
   suite('wildcardRegExp', () => {
 
     test('safely escapes regular expression characters', () => {
-      assert.deepEqual(util.wildcardRegExp('cool.js'), /cool\.js/);
-      assert.deepEqual(util.wildcardRegExp('f(n){n^2}'), /f\(n\)\{n\^2\}/);
+      assert.deepEqual(util.wildcardRegExp('cool.js'), /^cool\.js$/i);
+      assert.deepEqual(util.wildcardRegExp('f(n){n^2}'), /^f\(n\)\{n\^2\}$/i);
     });
 
     test('converts "*" in pattern to all character search', () => {
-      assert.deepEqual(util.wildcardRegExp('iron-*'), /iron-.*/);
-      assert.deepEqual(util.wildcardRegExp('*-*'), /.*-.*/);
+      assert.deepEqual(util.wildcardRegExp('iron-*'), /^iron-.*$/i);
+      assert.deepEqual(util.wildcardRegExp('*-*'), /^.*-.*$/i);
     });
 
     test('can match element names', () => {

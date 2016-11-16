@@ -54,6 +54,7 @@ declare module 'github' {
     }
     class Repo {
       owner: User;
+      full_name: string;
       name: string;
       clone_url: string;
     }

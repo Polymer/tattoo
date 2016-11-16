@@ -45,6 +45,7 @@ declare module 'nodegit' {
     getBranchCommit(branch: string): Promise<Commit>;
     checkoutBranch(branch: string|Reference): Promise<void>;
     getRemote(remote: string): Promise<Remote>;
+    fetch(remote: string, fetchOpts: FetchOptions): Promise<void>;
     fetchAll(fetchOpts: FetchOptions): Promise<void>;
     defaultSignature(): Signature;
     setHeadDetached(commitish: Oid, a: any, b: any): Number;

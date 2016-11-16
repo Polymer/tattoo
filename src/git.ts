@@ -51,6 +51,7 @@ export interface GitHubRepoRef {
  * consumption.
  */
 export class GitHubConnection {
+  private _cache: {repos: Map<string, Map<string, GitHub.Repo>>};
   private _cloneOptions: nodegit.CloneOptions;
   private _cloneRateLimiter: Bottleneck;
   private _github: GitHub;
@@ -58,6 +59,7 @@ export class GitHubConnection {
   private _user: GitHub.User;
 
   constructor(token: string) {
+    this.resetCache();
     this._token = token;
     this._github = new GitHub({
       version: '3.0.0',
@@ -78,6 +80,10 @@ export class GitHubConnection {
         }
       }
     };
+  }
+
+  resetCache() {
+    this._cache = {repos: new Map()};
   }
 
   // HACK: Don't expose repos, create the necessary methods to operate on them.
@@ -123,6 +129,10 @@ export class GitHubConnection {
    * @returns a representation of a github repo from a string version
    */
   async getRepoInfo(owner: string, repo: string): Promise<GitHub.Repo> {
+    if (this._cache.repos.has(owner.toLowerCase()) &&
+        this._cache.repos.get(owner.toLowerCase()).has(repo.toLowerCase())) {
+      return this._cache.repos.get(owner.toLowerCase()).get(repo.toLowerCase());
+    }
     return promisify(this._github.repos.get)({user: owner, repo: repo})
         .then((response) => {
           // TODO(usergenic): Patch to _handle_ redirects and/or include
@@ -139,10 +149,10 @@ export class GitHubConnection {
   }
 
   /**
-   * @returns an array of repo names for the given owner (which is either an
+   * @returns an array of repo (full_name) values for the given owner (which is either an
    * org or user on github.)
    */
-  async getRepoNames(owner: string): Promise<string[]> {
+  async getRepoFullNames(owner: string): Promise<string[]> {
     const names: string[] = [];
 
     // Try to get the repo names assuming owner is an org.
@@ -150,10 +160,13 @@ export class GitHubConnection {
     let pageSize = 50;
     let page = 0;
     let repos: GitHub.Repo[] = [];
+    const ownerRepoMap = new Map<string, GitHub.Repo>();
+    this._cache.repos.set(owner.toLowerCase(), ownerRepoMap);
     do {
       repos = await getFromOrg({org: owner, per_page: pageSize, page: page});
       for (const repo of repos) {
-        names.push(repo.name);
+        names.push(repo.full_name);
+        ownerRepoMap.set(repo.name.toLowerCase(), repo);
       }
       ++page;
     } while (repos.length > 0);
@@ -161,6 +174,13 @@ export class GitHubConnection {
     // TODO(usergenic): Update this function to support user repos as well as
     // the org repos.
     return names;
+  }
+
+  /**
+   * Given a nodegit repository, issue a git pull to bring it up to date.
+   */
+  async update(nodegitRepo: nodegit.Repository) {
+    await nodegitRepo.fetch('origin', this._cloneOptions.fetchOpts);
   }
 
   /**
@@ -179,15 +199,15 @@ export class GitHubConnection {
  */
 export async function checkout(
     nodegitRepo: nodegit.Repository,
-    checkoutRef: string): Promise<nodegit.Repository> {
+    checkoutRef?: string): Promise<nodegit.Repository> {
   const cwd = nodegitRepo.workdir();
+  const ref = typeof checkoutRef === 'string' ? checkoutRef : 'master';
   return new Promise<nodegit.Repository>(
       (resolve, reject) => (child_process.exec(
-          `git checkout ${checkoutRef}`,
-          {cwd: cwd},
-          (error, stdout, stderr) => {
+          `git checkout ${ref}`, {cwd: cwd}, (error, stdout, stderr) => {
             if (error) {
-              console.log(`Error checking out ${checkoutRef} in : ${cwd}`);
+              console.log(ref);
+              console.log(`Error checking out ${ref} in : ${cwd}`);
             }
             resolve(nodegitRepo);
           })));
@@ -219,6 +239,16 @@ export function parseGitHubRepoRefString(refString: string): GitHubRepoRef {
   const ref = hashSplit[1];
 
   return {ownerName: owner, repoName: repo, checkoutRef: ref};
+}
+
+/**
+ * @returns whether the matcherRef matches the targetRef, which allows for the
+ *     case-insensitive match as well as wildcards.
+ */
+export function matchRepoRef(
+    matcherRef: GitHubRepoRef, targetRef: GitHubRepoRef): boolean {
+  return util.wildcardRegExp(matcherRef.ownerName).test(targetRef.ownerName) &&
+      util.wildcardRegExp(matcherRef.repoName).test(targetRef.repoName);
 }
 
 /**

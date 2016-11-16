@@ -26,7 +26,7 @@ import {GitHubRepoRef} from './git';
  */
 export interface Workspace {
   dir: string;
-  repos: {[key: string]: WorkspaceRepo};
+  repos: Map<string, WorkspaceRepo>;
 }
 
 /**
@@ -56,4 +56,9 @@ export interface WorkspaceRepo {
    * The git repo to commit to.
    */
   nodegitRepo?: nodegit.Repository;
+
+  /**
+   * Should this repo be tested?
+   */
+  test: boolean;
 }

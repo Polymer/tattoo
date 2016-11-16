@@ -32,7 +32,7 @@ import * as rimraf from 'rimraf';
 import * as resolve from 'resolve';
 
 import * as git from './git';
-// import {test} from './test';
+import {test} from './test';
 import {TestResult, TestResultValue} from './test-result';
 import * as util from './util';
 import {Workspace, WorkspaceRepo} from './workspace';
@@ -111,7 +111,10 @@ export class Runner {
     this._tests = options.tests || [];
     this._verbose = !!options.verbose;
     this._wctFlags = options.wctFlags ? options.wctFlags.join(' ') : '';
-    this._workspace = {dir: (options.workspaceDir || './repos'), repos: {}};
+    this._workspace = {
+      dir: (options.workspaceDir || './repos'),
+      repos: new Map()
+    };
 
     // TODO(usergenic): Rate limit should be an option.
     this._testRateLimiter = new Bottleneck(1, 100);
@@ -136,11 +139,20 @@ export class Runner {
    * refs.
    */
   async _cloneOrUpdateWorkspaceRepos() {
+    if (this._verbose) {
+      console.log('Cloning/updating workspace repos...');
+    }
+
     const promises: Promise<nodegit.Repository>[] = [];
 
     // Clone git repos.
-    for (const name in this._workspace.repos) {
-      const repo = this._workspace.repos[name];
+    for (const name of this._workspace.repos.keys()) {
+      const repo = this._workspace.repos.get(name);
+      if (util.isDirSync(repo.dir)) {
+        repo.nodegitRepo = await nodegit.Repository.open(
+            path.join(this._workspace.dir, repo.dir));
+        promises.push(this._github.update(repo.nodegitRepo));
+      }
       promises.push(
           this._github
               .clone(repo.githubRepo, path.join(this._workspace.dir, repo.dir))
@@ -152,76 +164,58 @@ export class Runner {
     // TODO(usergenic): We probably want to track the set of repos completed so
     // we can identify the problem repos in case error messages come back
     // without enough context for users to debug.
-    await util.promiseAllWithProgress(promises, 'Cloning repos...');
+    await util.promiseAllWithProgress(promises, 'Cloning/Updating repos...');
   }
 
+  /**
+   * Given the arrays of repos and tests, expand the set (where wildcards are
+   * employed) and then reduce the set with excludeRepos, and set the workspace
+   * repos appropriately.
+   * TODO(usergenic): This method is getting long.  Break it up into sub-methods
+   * perhaps one for expanding the set of repos by going to github etc and
+   * another to remove items.
+   */
   async _determineWorkspaceRepos() {
-    let allGitHubRepoRefs: git.GitHubRepoRef[] = [];
-
-    // This is an index of names of owned repos so we can download the set
-    // just once for each owner, in the event we have wildcard in more than
-    // one repo config.
-    const reposByOwner: {[owner: string]: string[]} = {};
-
-    // Add every explicit repo and every repo from expanding wildcard names.
-    for (const githubRepoRef of this._repos.map(git.parseGitHubRepoRefString)) {
-      // If the repo has no wildcard, lets just put it in the list of all repos.
-      if (!githubRepoRef.repoName.match('*')) {
-        allGitHubRepoRefs.push(githubRepoRef);
-      } else {
-        // If we have not downloaded the repo names for this owner before, lets
-        // do that.
-        if (!reposByOwner[githubRepoRef.ownerName]) {
-          reposByOwner[githubRepoRef.ownerName] =
-              await this._github.getRepoNames(githubRepoRef.ownerName);
-        }
-
-        const repoNameRegExp = util.wildcardRegExp(githubRepoRef.repoName);
-
-        // Loop through all the names of the repos for the owner and add
-        // RepoConfigs to the allRepos list for every matching one.
-        allGitHubRepoRefs.push.apply(
-            allGitHubRepoRefs,
-            reposByOwner[githubRepoRef.ownerName]
-                .filter(name => repoNameRegExp.test(name))
-                .map(name => ({
-                       ownerName: githubRepoRef.ownerName,
-                       checkoutRef: githubRepoRef.checkoutRef,
-                       repoName: name
-                     })));
-      }
+    if (this._verbose) {
+      console.log('Determining workspace repos...');
     }
+    // Expand all repos and filter out the excluded repos
+    const expandedRepos: git.GitHubRepoRef[] =
+        (await this._expandWildcardRepoRefs(
+             this._repos.map(git.parseGitHubRepoRefString)))
+            .filter(
+                repo => !this._excludeRepos.some(
+                    exclude => git.matchRepoRef(
+                        git.parseGitHubRepoRefString(exclude), repo)));
+
+    // Expand all tests and filter out the skipped tests
+    const expandedTests: git.GitHubRepoRef[] =
+        (await this._expandWildcardRepoRefs(
+             this._tests.map(git.parseGitHubRepoRefString)))
+            .filter(
+                test => !this._skipTests.some(
+                    skip => git.matchRepoRef(
+                        git.parseGitHubRepoRefString(skip), test)));
+
 
     // TODO(usergenic): Maybe we should be obtaining the package name here
     // from the repository's bower.json or package.json.
-
-    for (const exclude of this._excludeRepos) {
-      const excludeRepoRef = git.parseGitHubRepoRefString(exclude);
-      const excludeOwnerRegExp = util.wildcardRegExp(excludeRepoRef.ownerName);
-      const excludeRepoRegExp = util.wildcardRegExp(excludeRepoRef.repoName);
-      const excludeCheckoutRegExp = excludeRepoRef.checkoutRef ?
-          util.wildcardRegExp(excludeRepoRef.checkoutRef) :
-          undefined;
-
-      allGitHubRepoRefs = allGitHubRepoRefs.filter((repo) => {
-        if (!excludeOwnerRegExp.test(repo.ownerName) ||
-            !excludeRepoRegExp.test(repo.repoName)) {
-          return false;
-        }
-        if (typeof excludeCheckoutRegExp !== 'undefined') {
-          return typeof repo.checkoutRef !== 'undefined' &&
-              excludeCheckoutRegExp.test(repo.checkoutRef);
-        }
-        return true;
-      });
-    }
 
     // NOTE(usergenic): We might need this here.  The old repo list included
     // hydrolysis:
     // allRepos.push(gitUtil.parseRepoExpression('Polymer/polymer-analyzer'));
 
+    // Need to download all the GitHub.Repo representations for these.
+    const githubRepoRefs: git.GitHubRepoRef[] =
+        expandedRepos.concat(expandedTests);
+
+    const githubRepos: GitHub.Repo[] = await util.promiseAllWithProgress(
+        githubRepoRefs.map(
+            repo => this._github.getRepoInfo(repo.ownerName, repo.repoName)),
+        'Getting Repo details from GitHub...');
+
     // Build the map of repos by name
-    for (const repoRef of allGitHubRepoRefs) {
+    for (const repoRef of githubRepoRefs) {
       // TODO(usergenic): This error is a bit strict and also doesn't reveal
       // enough data to help troubleshoot.  I.e. what is the full config of
       // the existing repo.  Update this message.
@@ -229,11 +223,58 @@ export class Runner {
         throw(`More than repo with name '${repoRef.repoName}' defined.`);
       }
 
-      this._workspace.repos[repoRef.repoName] = {
+      this._workspace.repos.set(repoRef.repoName, {
         githubRepoRef: repoRef,
-        dir: repoRef.repoName
-      };
+        dir: repoRef.repoName,
+        test: expandedTests.some(test => git.matchRepoRef(test, repoRef)),
+        githubRepo: githubRepos.find(
+            githubRepo => git.matchRepoRef(
+                git.parseGitHubRepoRefString(githubRepo.full_name), repoRef))
+      });
     }
+  }
+
+  /**
+   * Given a collection of GitHubRepoRefs, replace any that represent wildcard
+   * values with the literal values after comparing against names of repos on
+   * GitHub.  So a repo ref like `Polymer/*`` return everything owned by Polymer
+   * where `PolymerElements/iron-*`` would be all repos that start with `iron-``
+   */
+  async _expandWildcardRepoRefs(repoRefs: git.GitHubRepoRef[]):
+      Promise<git.GitHubRepoRef[]> {
+    const ownersToFetchRepoNamesFor: Set<string> = new Set();
+    for (const repo of repoRefs) {
+      if (repo.repoName.match(/\*/)) {
+        ownersToFetchRepoNamesFor.add(repo.ownerName.toLowerCase());
+      }
+    }
+    if (ownersToFetchRepoNamesFor.size === 0) {
+      return Array.from(repoRefs);
+    }
+
+    // TODO(usergenic): When there are repos and tests with wildcards, we get
+    // two progress bars, identically labeled.  We should move the work to fetch
+    // the pages of repos into a support method that can be called in advance of
+    // the expand call and put the progress bar message there.
+    const allGitHubRepoRefs: git.GitHubRepoRef[] =
+        (await util.promiseAllWithProgress(
+             Array.from(ownersToFetchRepoNamesFor)
+                 .map(owner => this._github.getRepoFullNames(owner)),
+             'Fetching repo names for wildcard search'))
+            .reduce((a, b) => a.concat(b))
+            .map(git.parseGitHubRepoRefString);
+    const expandedRepoRefs: git.GitHubRepoRef[] = [];
+    for (const repoRef of repoRefs) {
+      if (repoRef.repoName.match(/\*/)) {
+        expandedRepoRefs.push.apply(
+            expandedRepoRefs,
+            allGitHubRepoRefs.filter(
+                otherRepoRef => git.matchRepoRef(repoRef, otherRepoRef)));
+      } else {
+        expandedRepoRefs.push(repoRef);
+      }
+    }
+    return expandedRepoRefs;
   }
 
   /**
@@ -243,13 +284,22 @@ export class Runner {
   async _prepareWorkspaceFolder() {
     const workspaceDir = this._workspace.dir;
 
+    if (this._verbose) {
+      console.log(`Preparing workspace folder ${workspaceDir}...`);
+    }
     // Clean up repos when 'fresh' option is true.
     if (this._fresh) {
+      if (this._verbose) {
+        console.log(`Removing workspace folder ${workspaceDir}...`);
+      }
       await promisify(rimraf)(workspaceDir);
     }
 
     // Ensure repos folder exists.
     if (!util.existsSync(workspaceDir)) {
+      if (this._verbose) {
+        console.log(`Creating workspace folder ${workspaceDir}...`);
+      }
       fs.mkdirSync(workspaceDir);
     }
 
@@ -258,6 +308,9 @@ export class Runner {
     for (let dir of fs.readdirSync(workspaceDir)) {
       const repoDir = path.join(workspaceDir, dir);
       if (!util.isDirSync(repoDir) || fs.readdirSync(repoDir).length === 1) {
+        if (this._verbose) {
+          console.log(`Removing clone ${repoDir}...`);
+        }
         await promisify(rimraf)(repoDir);
       }
     }
@@ -267,10 +320,72 @@ export class Runner {
    * All repos specified by tests option will be run through wct.
    */
   async _testAllTheThings(): Promise<TestResult[]> {
+    if (this._verbose) {
+      console.log('Test all the things...');
+    }
+
+    const testPromises: Promise<TestResult>[] = [];
+
+    for (const repo of Array.from(this._workspace.repos.values())
+             .filter(repo => repo.test)) {
+      try {
+        const testPromise = this._testRateLimiter.schedule(() => {
+          return test(this._workspace, repo, this._wctFlags.split(' '));
+        });
+        testPromises.push(testPromise);
+      } catch (err) {
+        throw new Error(`Error testing ${repo.dir}:\n${err.stack || err}`);
+      }
+    }
+    let passed = 0;
+    let failed = 0;
+    let skipped = 0;
+    const testResults: TestResult[] =
+        await util.promiseAllWithProgress(testPromises, 'Testing...');
+    // Give the progress bar a chance to display.
+    await new Promise((resolve, _) => {
+      setTimeout(() => resolve(), 1000);
+    });
+    let rerun = '#!/bin/bash\n';
+    for (let result of testResults) {
+      const statusString = (() => {
+        switch (result.result) {
+          case TestResultValue.passed:
+            passed++;
+            return 'PASSED';
+          case TestResultValue.failed:
+            rerun += `pushd ${result.workspaceRepo.dir}\n`;
+            rerun += `wct\n`;
+            rerun += `popd\n`;
+            failed++;
+            return 'FAILED';
+          case TestResultValue.skipped:
+            skipped++;
+            return 'SKIPPED';
+        }
+      })();
+      if (result.result === TestResultValue.failed) {
+        console.log(
+            'Tests for: ' + result.elementRepo.dir + ' status: ' +
+            statusString);
+        if (opts['verbose']) {
+          console.log(result.output);
+        }
+      }
+    }
+    const total = passed + failed;
+    console.log(`${passed} / ${total} tests passed. ${skipped} skipped.`);
+    if (failed > 0) {
+      fs.writeFileSync('rerun.sh', rerun, {mode: 0o700});
+    }
+
     return [];
   }
 
   async _reportTestResults(testResults: TestResult[]) {
+    if (this._verbose) {
+      console.log('Report test results...');
+    }
   }
 
   /**
