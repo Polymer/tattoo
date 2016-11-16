@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * @license
  * Copyright (c) 2016 The Polymer Project Authors. All rights reserved.
@@ -46,12 +45,8 @@ export interface ConfigFileOptions {
   'workspace-dir'?: string;
 }
 
-/**
- * TODO(usergenic): Right now these args produce RunnerOptions-- we should look
- * at separating those so RunnerOptions doesn't include the 'config-file' or
- * 'help' keys, for example, which are not meaningful to it.
- */
-const cli = cliArgs([
+// TODO(usergenic): Consider a -b --bower-flags argument.
+export const cli = cliArgs([
   {name: 'help', alias: 'h', type: Boolean, description: 'Print usage.'},
   {
     name: 'config-file',
@@ -135,7 +130,7 @@ const cli = cliArgs([
     alias: 'w',
     multiple: true,
     type: String,
-    defaultValue: ['-b chrome'],
+    defaultValue: ['--local chrome'],
     description: 'Set to specify flags passed to wct.'
   },
   {
@@ -153,7 +148,7 @@ const cli = cliArgs([
  * in the github-token file in working folder.  If that doesn't exist either,
  * we message to the user that we need a token and exit the process.
  */
-function ensureGitHubToken(options: CliOptions) {
+export function ensureGitHubToken(options: CliOptions) {
   // TODO(usergenic): Maybe support GITHUB_TOKEN as an environment variable,
   // since this would be a better solution for Travis deployments etc.
   if (!options['github-token']) {
@@ -176,7 +171,7 @@ Generate a token here:   https://github.com/settings/tokens
  * and the file exists.  If it is not specified or does not exist, returns empty
  * options object.  Will throw on malformed file only.
  */
-function loadConfigFileOptions(options: CliOptions): ConfigFileOptions {
+export function loadConfigFileOptions(options: CliOptions): ConfigFileOptions {
   if (!options['config-file']) {
     return {};
   }
@@ -203,7 +198,7 @@ function loadConfigFileOptions(options: CliOptions): ConfigFileOptions {
  * Loads the config file specified in the options as 'config-file' and merges
  * the values into the provided options as appropriate.
  */
-function mergeConfigFileOptions(
+export function mergeConfigFileOptions(
     options: CliOptions, cfOptions: ConfigFileOptions) {
   function mergeArray(name: string) {
     if (typeof cfOptions[name] !== 'undefined') {
@@ -237,7 +232,7 @@ function mergeConfigFileOptions(
 /**
  * Displays the usage information for the CLI if requested in options.
  */
-function showCliHelp(options: CliOptions) {
+export function showCliHelp(options: CliOptions) {
   if (options.help) {
     console.log(cli.getUsage({
       header: 'tattoo runs many tests at various branches!!',
@@ -246,35 +241,3 @@ function showCliHelp(options: CliOptions) {
     process.exit(0);
   }
 }
-
-async function main() {
-  console.time('tattoo');
-  try {
-    const cliOptions: CliOptions = cli.parse();
-    showCliHelp(cliOptions);
-    mergeConfigFileOptions(cliOptions, loadConfigFileOptions(cliOptions));
-    ensureGitHubToken(cliOptions);
-    const runnerOptions: RunnerOptions = {
-      excludeRepos: cliOptions['exclude-repo'],
-      githubToken: cliOptions['github-token'],
-      fresh: cliOptions['fresh'],
-      latestRelease: cliOptions['latest-release'],
-      repos: cliOptions['repo'],
-      skipTests: cliOptions['skip-test'],
-      tests: cliOptions['test'],
-      verbose: cliOptions['verbose'],
-      wctFlags: cliOptions['wct-flags'],
-      workspaceDir: cliOptions['workspace-dir']
-    };
-    const runner: Runner = new Runner(runnerOptions);
-    await runner.run();
-  } catch (err) {
-    // Report the error and crash.
-    console.error('\n\n');
-    console.error(err.stack || err);
-    process.exit(1);
-  }
-  console.timeEnd('tattoo');
-}
-
-main();

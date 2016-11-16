@@ -247,9 +247,6 @@ export class Runner {
                     skip => git.matchRepoRef(
                         git.parseGitHubRepoRefString(skip), test)));
 
-    const supportRepos: git.GitHubRepoRef[] =
-        [git.parseGitHubRepoRefString('Polymer/polymer')];
-
     // TODO(usergenic): Maybe we should be obtaining the package name here
     // from the repository's bower.json or package.json.
 
@@ -259,7 +256,7 @@ export class Runner {
 
     // Need to download all the GitHub.Repo representations for these.
     const githubRepoRefs: git.GitHubRepoRef[] =
-        expandedRepos.concat(expandedTests).concat(supportRepos);
+        expandedRepos.concat(expandedTests);
 
     const githubRepos: GitHub.Repo[] = await util.promiseAllWithProgress(
         githubRepoRefs.map(
@@ -284,13 +281,37 @@ export class Runner {
                 git.parseGitHubRepoRefString(githubRepo.full_name), repoRef))
       });
     }
+
+    if (this._verbose) {
+      const workspaceReposToTest =
+          Array.from(this._workspace.repos.entries())
+              .filter(repo => repo[1].test)
+              .sort((a, b) => a[0] < b[0] ? -1 : (a[0] > b[0] ? 1 : 0));
+      console.log(`Repos to test: ${workspaceReposToTest.length}`);
+      for (const repo of workspaceReposToTest) {
+        console.log(`    ${git.serializeGitHubRepoRef(repo[1].githubRepoRef)}`);
+      }
+      const workspaceReposToRequire =
+          Array.from(this._workspace.repos.entries())
+              .filter(repo => !repo[1].test)
+              .sort((a, b) => a[0] < b[0] ? -1 : (a[0] > b[0] ? 1 : 0));
+      if (workspaceReposToRequire.length > 0) {
+        console.log(`Repos to provide, but not test: ${workspaceReposToRequire
+                        .length}`);
+        for (const repo of workspaceReposToRequire) {
+          console.log(
+              `   ${git.serializeGitHubRepoRef(repo[1].githubRepoRef)}`);
+        }
+      }
+    }
   }
 
   /**
    * Given a collection of GitHubRepoRefs, replace any that represent wildcard
    * values with the literal values after comparing against names of repos on
-   * GitHub.  So a repo ref like `Polymer/*`` return everything owned by Polymer
-   * where `PolymerElements/iron-*`` would be all repos that start with `iron-``
+   * GitHub.  So a repo ref like `Polymer/*` return everything owned by
+   * Polymer where `PolymerElements/iron-*` would be all repos that start with
+   * `iron-` owned by `PolymerElements` org.
    */
   async _expandWildcardRepoRefs(repoRefs: git.GitHubRepoRef[]):
       Promise<git.GitHubRepoRef[]> {
@@ -304,9 +325,12 @@ export class Runner {
       return Array.from(repoRefs);
     }
 
-    // TODO(usergenic): When there are repos and tests with wildcards, we get
-    // two progress bars, identically labeled.  We should move the work to fetch
-    // the pages of repos into a support method that can be called in advance of
+    // TODO(usergenic): When there are repos and tests with wildcards, we
+    // get
+    // two progress bars, identically labeled.  We should move the work to
+    // fetch
+    // the pages of repos into a support method that can be called in
+    // advance of
     // the expand call and put the progress bar message there.
     const allGitHubRepoRefs: git.GitHubRepoRef[] =
         (await util.promiseAllWithProgress(
@@ -330,7 +354,8 @@ export class Runner {
   }
 
   /**
-   * Cleans up the workspace folder and fixes repos which may be in incomplete
+   * Cleans up the workspace folder and fixes repos which may be in
+   * incomplete
    * or bad state due to prior abended runs.
    */
   async _prepareWorkspaceFolder() {
@@ -369,6 +394,101 @@ export class Runner {
   }
 
   /**
+   * @returns a dictionary object of dev dependencies from the bower.json
+   * entries in all workspace repos that are marked for test, suitable for
+   * serializing into the devDependencies key of a generated bower.json file
+   * for the workspace dir.
+   *
+   * TODO(usergenic): Merge strategy blindly overwrites previous value for key with whatever new value it encounters as we iterate through bower configs
+   * which may not be what we want.  Preserving the
+   * highest semver value is *probably* the desired approach
+   * instead.
+   */
+  _mergedTestRepoBowerConfig(): {
+    name: string; dependencies: {[key: string]: string};
+    resolutions: {[key: string]: string};
+  } {
+    const merged = {
+      name: 'generated-bower-config-for-tattoo-workspace',
+      dependencies: {},
+      resolutions: {}
+    };
+    for (const repo of Array.from(this._workspace.repos.values())
+             .filter(repo => repo.test)) {
+      const repoPath = path.join(this._workspace.dir, repo.dir);
+      // TODO(usergenic): Verify that we can assume bower.json is the config
+      // file in the event any repo-specific .bowerrc files are capable of
+      // redefining its name.
+      const bowerJsonPath = path.join(repoPath, 'bower.json');
+      if (!util.existsSync(bowerJsonPath)) {
+        continue;
+      }
+      let bowerJson = fs.readFileSync(bowerJsonPath).toString();
+      let bowerConfig = JSON.parse(bowerJson);
+      if (bowerConfig.devDependencies) {
+        for (const name in bowerConfig.devDependencies) {
+          merged.dependencies[name] = bowerConfig.devDependencies[name];
+        }
+      }
+      if (bowerConfig.dependencies) {
+        for (const name in bowerConfig.dependencies) {
+          merged.dependencies[name] = bowerConfig.dependencies[name];
+        }
+      }
+      if (bowerConfig.resolutions) {
+        for (const name in bowerConfig.resolutions) {
+          merged.resolutions[name] = bowerConfig.resolutions[name];
+        }
+      }
+    }
+    return merged;
+  }
+
+  /**
+   * Creates a .bowerrc that tells bower to use the workspace dir (`.`) as
+   * the installation dir (instead of default (`./bower_components`) dir.
+   * Creates a bower.json which sets all the workspace repos as dependencies
+   * and
+   * also includes the devDependencies from all workspace repos under test.
+   */
+  _installWorkspaceDependencies() {
+    const pb =
+        util.standardProgressBar('Installing dependencies with bower...', 1);
+
+    fs.writeFileSync(
+        path.join(this._workspace.dir, '.bowerrc'),
+        JSON.stringify({directory: '.'}));
+
+    const bowerConfig = this._mergedTestRepoBowerConfig();
+
+    // TODO(usergenic): Verify this is even needed.
+    if (!bowerConfig.dependencies['web-component-tester']) {
+      bowerConfig.dependencies['web-component-tester'] = '';
+    }
+
+    // Make bower config point bower packages of workspace repos to themselves
+    // to override whatever any direct or transitive dependencies say.
+    for (const repo of Array.from(this._workspace.repos.entries())) {
+      bowerConfig.dependencies[repo[0]] = `./${repo[1].dir}`;
+    }
+
+    fs.writeFileSync(
+        path.join(this._workspace.dir, 'bower.json'),
+        JSON.stringify(bowerConfig));
+
+    // TODO(usergenic): Can we switch to using bower as library here?  Might
+    // even give us better option for progress bar.
+    // HACK(usergenic): Need a reliable way to obtain the bower bin script.
+    const bowerCmd = path.join(resolve.sync('bower'), '../bin/bower.js');
+    child_process.execSync(`node ${bowerCmd} install -F`, {
+      // node ${bowerCmd} install`, {
+      cwd: this._workspace.dir,
+      stdio: (this._verbose ? 'inherit' : 'ignore')
+    });
+    pb.tick();
+  }
+
+  /**
    * All repos specified by tests option will be run through wct.
    */
   async _testAllTheThings(): Promise<TestResult[]> {
@@ -377,14 +497,6 @@ export class Runner {
     }
 
     const testPromises: Promise<TestResult>[] = [];
-
-    fs.writeFileSync(
-        path.join(this._workspace.dir, '.bowerrc'),
-        JSON.stringify({directory: '.'}));
-    const bowerCmd = resolve.sync('bower');
-    child_process.execSync(
-        `node ${bowerCmd} install web-component-tester`,
-        {cwd: this._workspace.dir, stdio: 'ignore'});
 
     for (const repo of Array.from(this._workspace.repos.values())
              .filter(repo => repo.test)) {
@@ -457,6 +569,8 @@ export class Runner {
     await this._prepareWorkspaceFolder();
     // Update in-place and/or clone repositories from GitHub.
     await this._cloneOrUpdateWorkspaceRepos();
+    // Bower installs all the devDependencies of test repos also gets wct.
+    this._installWorkspaceDependencies();
     // Run all the tests.
     const testResults = await this._testAllTheThings();
     // Report test results.

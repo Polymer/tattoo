@@ -2,15 +2,15 @@
   "name": "tattoo",
   "version": "1.0.2",
   "description": "Test all the things over and over",
-  "main": "lib/tattoo.js",
+  "main": "lib/runner.js",
   "bin": {
-    "tattoo": "lib/tattoo.js"
+    "tattoo": "lib/bin/tattoo.js"
   },
   "scripts": {
     "format": "find src custom_typings | grep '\\.ts$' | xargs clang-format --style=file -i",
     "test": "tslint src/*.ts src/**/*.ts custom_typings/*.ts; mocha",
     "build": "tsc",
-    "tattoo": "node lib/tattoo.js",
+    "tattoo": "node lib/bin/tattoo.js",
     "build:watch": "tsc -w",
     "test:watch": "watch 'npm test' ./",
     "prepublish": "npm run build"
