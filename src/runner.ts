@@ -224,6 +224,8 @@ export class Runner {
    * TODO(usergenic): This method is getting long.  Break it up into sub-methods
    * perhaps one for expanding the set of repos by going to github etc and
    * another to remove items.
+   * TODO(usergenic): Should this method explode if it results in no repos to
+   * test?
    */
   async _determineWorkspaceRepos() {
     if (this._verbose) {
@@ -326,12 +328,9 @@ export class Runner {
     }
 
     // TODO(usergenic): When there are repos and tests with wildcards, we
-    // get
-    // two progress bars, identically labeled.  We should move the work to
-    // fetch
-    // the pages of repos into a support method that can be called in
-    // advance of
-    // the expand call and put the progress bar message there.
+    // get two progress bars, identically labeled.  We should move the work to
+    // fetch the pages of repos into a support method that can be called in
+    // advance of the expand call and put the progress bar message there.
     const allGitHubRepoRefs: git.GitHubRepoRef[] =
         (await util.promiseAllWithProgress(
              Array.from(ownersToFetchRepoNamesFor)
