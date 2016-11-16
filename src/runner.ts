@@ -134,6 +134,56 @@ export class Runner {
   }
 
   /**
+ * Analyzes all of the HTML in 'repos/*' with hydrolysis.
+ *
+ * @returns a promise of the hydrolysis.Analyzer with all of the info loaded.
+ */
+  async _analyzeRepos() {
+    const dirs = fs.readdirSync(this._workspace.dir);
+    const htmlFiles: string[] = [];
+
+    for (const dir of dirs) {
+      for (const fn of fs.readdirSync(path.join('repos', dir))) {
+        if (/index\.html|dependencies\.html/.test(fn) ||
+            !fn.endsWith('.html')) {
+          continue;
+        }
+        // We want to ignore files with 'demo' in them, unless the element's
+        // directory has the word 'demo' in it, in which case that's
+        // the whole point of the element.
+        if (!/\bdemo\b/.test(dir) && /demo/.test(fn)) {
+          continue;
+        }
+        htmlFiles.push(path.join('repos', dir, fn));
+      }
+    }
+
+    function filter(repo: string) {
+      return !util.existsSync(repo);
+    }
+
+    // This code is conceptually simple, it's only complex due to ordering
+    // and the progress bar. Basically we call analyzer.metadataTree on each
+    // html file in sequence, then finally call analyzer.annotate() and return.
+    const analyzer = await hydrolysis.Analyzer.analyze(
+        path.join(this._workspace.dir, 'polymer', 'polymer.html'), {filter});
+
+    const progressBar =
+        util.standardProgressBar('Analyzing...', htmlFiles.length + 1);
+
+    for (const htmlFile of htmlFiles) {
+      await analyzer.metadataTree(htmlFile);
+      progressBar.tick(
+          {msg: util.progressMessage(`Analyzing ${htmlFile.slice(6)}`)});
+    }
+
+    progressBar.tick(
+        {msg: util.progressMessage('Analyzing with hydrolysis...')});
+    analyzer.annotate();
+    return analyzer;
+  }
+
+  /**
    * Given all the repos defined in the workspace, lets iterate through them
    * and either clone them or update their clones and set them to the specific
    * refs.
@@ -197,6 +247,8 @@ export class Runner {
                     skip => git.matchRepoRef(
                         git.parseGitHubRepoRefString(skip), test)));
 
+    const supportRepos: git.GitHubRepoRef[] =
+        [git.parseGitHubRepoRefString('Polymer/polymer')];
 
     // TODO(usergenic): Maybe we should be obtaining the package name here
     // from the repository's bower.json or package.json.
@@ -207,7 +259,7 @@ export class Runner {
 
     // Need to download all the GitHub.Repo representations for these.
     const githubRepoRefs: git.GitHubRepoRef[] =
-        expandedRepos.concat(expandedTests);
+        expandedRepos.concat(expandedTests).concat(supportRepos);
 
     const githubRepos: GitHub.Repo[] = await util.promiseAllWithProgress(
         githubRepoRefs.map(
@@ -326,6 +378,14 @@ export class Runner {
 
     const testPromises: Promise<TestResult>[] = [];
 
+    fs.writeFileSync(
+        path.join(this._workspace.dir, '.bowerrc'),
+        JSON.stringify({directory: '.'}));
+    const bowerCmd = resolve.sync('bower');
+    child_process.execSync(
+        `node ${bowerCmd} install web-component-tester`,
+        {cwd: this._workspace.dir, stdio: 'ignore'});
+
     for (const repo of Array.from(this._workspace.repos.values())
              .filter(repo => repo.test)) {
       try {
@@ -337,15 +397,17 @@ export class Runner {
         throw new Error(`Error testing ${repo.dir}:\n${err.stack || err}`);
       }
     }
+    return await util.promiseAllWithProgress(testPromises, 'Testing...');
+  }
+
+  async _reportTestResults(testResults: TestResult[]) {
+    if (this._verbose) {
+      console.log('Report test results...');
+    }
+
     let passed = 0;
     let failed = 0;
     let skipped = 0;
-    const testResults: TestResult[] =
-        await util.promiseAllWithProgress(testPromises, 'Testing...');
-    // Give the progress bar a chance to display.
-    await new Promise((resolve, _) => {
-      setTimeout(() => resolve(), 1000);
-    });
     let rerun = '#!/bin/bash\n';
     for (let result of testResults) {
       const statusString = (() => {
@@ -366,9 +428,9 @@ export class Runner {
       })();
       if (result.result === TestResultValue.failed) {
         console.log(
-            'Tests for: ' + result.elementRepo.dir + ' status: ' +
+            'Tests for: ' + result.workspaceRepo.dir + ' status: ' +
             statusString);
-        if (opts['verbose']) {
+        if (this._verbose) {
           console.log(result.output);
         }
       }
@@ -379,13 +441,7 @@ export class Runner {
       fs.writeFileSync('rerun.sh', rerun, {mode: 0o700});
     }
 
-    return [];
-  }
-
-  async _reportTestResults(testResults: TestResult[]) {
-    if (this._verbose) {
-      console.log('Report test results...');
-    }
+    return testResults;
   }
 
   /**
@@ -407,215 +463,3 @@ export class Runner {
     this._reportTestResults(testResults);
   }
 }
-
-
-/**
- * Returns a Promise of a list of Polymer github repos to automatically
- * cleanup / transform.
-async function getRepos():
-    Promise<GitHub.Repo[]> {
-      const per_page = 100;
-      const getFromOrg: (o: Object) => Promise<GitHub.Repo[]> =
-          promisify(github.repos.getFromOrg);
-      let progressLength = 2;
-      if (opts.repo.length) {
-        progressLength += opts.repo.length;
-      }
-      const progressBar = standardProgressBar(
-          'Discovering repos in PolymerElements...', progressLength);
-
-      // First get the Polymer repo, then get all of the PolymerElements repos.
-      const repo: GitHub.Repo =
-          await promisify(github.repos.get)({user: 'Polymer', repo: 'polymer'});
-      progressBar.tick();
-      const repos = [repo];
-      if (opts.repo.length) {
-        // cleanup passes wants ContributionGuide around
-        repos.push(await promisify(github.repos.get)(
-            {user: 'PolymerElements', repo: 'ContributionGuide'}));
-        progressBar.tick();
-        for (let repo of opts.repo) {
-          repos.push(await promisify(github.repos.get)(repo));
-          progressBar.tick();
-        }
-      } else {
-        let page = 0;
-        while (true) {
-          const resultsPage =
-              await getFromOrg({org: 'PolymerElements', per_page, page});
-          repos.push.apply(repos, resultsPage);
-          page++;
-          if (resultsPage.length < per_page) {
-            break;
-          }
-        }
-
-        // Add in necessary testing repos
-        repos.push(await github.getRepoInfo('Polymer', 'polymer-analyzer'));
-        // TODO(garlicnation): detect from bower.json
-        // TODO(usergenic): Keeping these in comments only until I understand
-        // why they were here or recognize they are unnecessary.
-        // repos.push(await github.getRepoInfo('PolymerElements',
-        // 'iron-image'));
-        // repos.push(await github.getRepoInfo('PolymerLabs',
-        // 'promise-polyfill'));
-        // repos.push(await github.getRepoInfo('webcomponents',
-        // 'webcomponentsjs'));
-        // repos.push(await github.getRepoInfo('web-animations',
-        // 'web-animations-js'));
-        // repos.push(await github.getRepoInfo('chjj', 'marked'));
-        // repos.push(await github.getRepoInfo('PrismJS', 'prism'));
-        progressBar.tick();
-      }
-
-      // github pagination is... not entirely consistent, and
-      // sometimes gives us duplicate repos.
-      const repoIds = new Set<string>();
-      const dedupedRepos: GitHub.Repo[] = [];
-      for (const repo of repos) {
-        if (repoIds.has(repo.name)) {
-          continue;
-        }
-        repoIds.add(repo.name);
-        dedupedRepos.push(repo);
-      }
-      return dedupedRepos;
-    }
-**/
-
-/**
- * Analyzes all of the HTML in 'repos/*' with hydrolysis.
- *
- * @returns a promise of the hydrolysis.Analyzer with all of the info loaded.
- */
-async function analyzeRepos() {
-  const dirs = fs.readdirSync('repos/');
-  const htmlFiles: string[] = [];
-
-  for (const dir of dirs) {
-    for (const fn of fs.readdirSync(path.join('repos', dir))) {
-      if (/index\.html|dependencies\.html/.test(fn) || !fn.endsWith('.html')) {
-        continue;
-      }
-      // We want to ignore files with 'demo' in them, unless the element's
-      // directory has the word 'demo' in it, in which case that's
-      // the whole point of the element.
-      if (!/\bdemo\b/.test(dir) && /demo/.test(fn)) {
-        continue;
-      }
-      htmlFiles.push(path.join('repos', dir, fn));
-    }
-  }
-
-  function filter(repo: string) {
-    return !util.existsSync(repo);
-  }
-
-  // This code is conceptually simple, it's only complex due to ordering
-  // and the progress bar. Basically we call analyzer.metadataTree on each
-  // html file in sequence, then finally call analyzer.annotate() and return.
-  const analyzer =
-      await hydrolysis.Analyzer.analyze('repos/polymer/polymer.html', {filter});
-
-  const progressBar =
-      util.standardProgressBar('Analyzing...', htmlFiles.length + 1);
-
-  for (const htmlFile of htmlFiles) {
-    await analyzer.metadataTree(htmlFile);
-    progressBar.tick(
-        {msg: util.progressMessage(`Analyzing ${htmlFile.slice(6)}`)});
-  }
-
-  progressBar.tick({msg: util.progressMessage('Analyzing with hydrolysis...')});
-  analyzer.annotate();
-  return analyzer;
-}
-
-/**
-async function _main(elements: ElementRepo[]) {
-  runner.connect();
-  runner.cloneOrUpdateAllTheRepos();
-
-  const promises: Promise<ElementRepo>[] = [];
-
-  fs.writeFileSync('repos/.bowerrc', JSON.stringify({directory: '.'}));
-  const bowerCmd = resolve.sync('bower');
-  child_process.execSync(
-      `node ${bowerCmd} install web-component-tester`,
-      {cwd: 'repos', stdio: 'ignore'});
-
-  const testPromises: Array<Promise<TestResult>> = [];
-  let elementsToTest: ElementRepo[];
-
-  if (typeof opts['test-repo'] === 'string') {
-    if (opts['test-repo']) {
-      opts['test-repo'] = [opts['test-repo']];
-    } else {
-      opts['test-repo'] = [];
-    }
-  }
-  // 'repos'
-  const prefix = 6;
-  if (opts['test-repo'].length > 0) {
-    elementsToTest = elements.filter((el) => {
-      return opts['test-repo'].indexOf(el.dir.substring(prefix)) > -1;
-    });
-  } else {
-    elementsToTest = elements;
-  }
-
-  for (const element of elementsToTest) {
-    if (excludes.has(element.dir)) {
-      continue;
-    }
-    try {
-      const testPromise = testRateLimiter.schedule(() => {
-        return test(element, opts['wctflags'].split(' '));
-      });
-      testPromises.push(testPromise);
-    } catch (err) {
-      throw new Error(`Error testing ${element.dir}:\n${err.stack || err}`);
-    }
-  }
-  let passed = 0;
-  let failed = 0;
-  let skipped = 0;
-  const testResults =
-      await util.promiseAllWithProgress(testPromises, 'Testing...');
-  // Give the progress bar a chance to display.
-  await new Promise((resolve, _) => {
-    setTimeout(() => resolve(), 1000);
-  });
-  let rerun = '#!/bin/bash\n';
-  for (let result of testResults) {
-    const statusString = (() => {
-      switch (result.result) {
-        case TestResultValue.passed:
-          passed++;
-          return 'PASSED';
-        case TestResultValue.failed:
-          rerun += `pushd ${result.elementRepo.dir}\n`;
-          rerun += `wct\n`;
-          rerun += `popd\n`;
-          failed++;
-          return 'FAILED';
-        case TestResultValue.skipped:
-          skipped++;
-          return 'SKIPPED';
-      }
-    })();
-    if (result.result === TestResultValue.failed) {
-      console.log(
-          'Tests for: ' + result.elementRepo.dir + ' status: ' + statusString);
-      if (opts['verbose']) {
-        console.log(result.output);
-      }
-    }
-  }
-  const total = passed + failed;
-  console.log(`${passed} / ${total} tests passed. ${skipped} skipped.`);
-  if (failed > 0) {
-    fs.writeFileSync('rerun.sh', rerun, {mode: 0o700});
-  }
-}
-**/
