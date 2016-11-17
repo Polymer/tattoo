@@ -117,7 +117,9 @@ Config files support most of the same options as the command-line flags:
 
 * `"latest-release": true|false`
   Set to update repos to their latest release when possible and when a specific
-  `#ref` is not included in their name.
+  `#ref` is not included in their name.  When no `#ref` is given and the
+  `latest-release` option is false or not given, repos are checked out at HEAD,
+  which is conventionally their `master` branch.
 
 * `"verbose": true|false`
   When true, output all the things.
