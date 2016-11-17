@@ -267,12 +267,20 @@ export function mergeConfigFileOptions(
  */
 export function showCliHelp(options: CliOptions) {
   if (options.help) {
-    const commandLineUsage = require('command-line-usage');
-    const usage = commandLineUsage([
-      {
-        header: 'tattoo (test all the things over & over)',
-        content:
-            `Runs the web-components-tester on custom element git repositories.
+    console.log(getCliHelp());
+    process.exit(0);
+  }
+}
+
+/**
+ * Produces the usage information to display for the --help/-h option.
+ */
+export function getCliHelp(): string {
+  return require('command-line-usage')([
+    {
+      header: 'tattoo (test all the things over & over)',
+      content:
+          `Runs the web-components-tester on custom element git repositories.
 
   Run test for a specific GitHub repository:
     $ tattoo PolymerElements/paper-button
@@ -281,14 +289,11 @@ export function showCliHelp(options: CliOptions) {
     $ tattoo PolymerElements/paper-*
 
   See more examples at https://github.com/Polymer/tattoo`
-      },
-      {
-        header: 'Options',
-        optionList: commandLineArgsUsageOptsToCommandLineUsageOptionList(
-            cliOptionDefinitions)
-      }
-    ]);
-    console.log(usage);
-    process.exit(0);
-  }
+    },
+    {
+      header: 'Options',
+      optionList: commandLineArgsUsageOptsToCommandLineUsageOptionList(
+          cliOptionDefinitions)
+    }
+  ]);
 }
