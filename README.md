@@ -43,12 +43,6 @@ tattoo "PolymerElements/paper-*#2.0-preview"
 tattoo PolymerElements/* -s PolymerElements/style-guide
 ```
 
-***Test all the repos, except that one***
-
-```
-tattoo PolymerElements/* -s PolymerElements/style-guide
-```
-
 ***Test repos with a config.***
 
 Create a json config file with `branch-config` and/or `wctflags` keys:
