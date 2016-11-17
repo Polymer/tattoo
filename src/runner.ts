@@ -455,8 +455,7 @@ export class Runner {
         util.standardProgressBar('Installing dependencies with bower...', 1);
 
     fs.writeFileSync(
-        path.join(this._workspace.dir, '.bowerrc'),
-        JSON.stringify({directory: '.'}));
+        path.join(this._workspace.dir, '.bowerrc'), '{"directory": "."}');
 
     const bowerConfig = this._mergedTestRepoBowerConfig();
 
