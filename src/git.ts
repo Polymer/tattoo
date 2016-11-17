@@ -85,16 +85,6 @@ export class GitHubConnection {
     this._cache = {repos: new Map()};
   }
 
-  // HACK: Don't expose repos, create the necessary methods to operate on them.
-  get repos() {
-    return this._github.repos;
-  }
-
-  // HACK: Don't expose user, create the necessary methods to operate on them.
-  get user() {
-    return this._github.user;
-  }
-
   /**
    * Given a github repository and a directory to clone it into, return an
    * ElementRepo once it has been cloned and checked out.
