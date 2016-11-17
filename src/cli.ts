@@ -233,14 +233,19 @@ export function mergeConfigFileOptions(
 export function showCliHelp(options: CliOptions) {
   if (options.help) {
     console.log(cli.getUsage({
-      title: 'tattoo'
-      description: `
-tattoo runs the web-components-tester on custom element git repositories.
-repositories of custom element tests at various branches.
+      title: 'tattoo (test all the things over & over)',
+      description:
+          `Runs the web-components-tester on custom element git repositories.
 
-$ tattoo [options]
+Run test for a specific GitHub repository:
+  $ tattoo -t PolymerElements/paper-button
+
+Run test for a whole bunch of GitHub repositories:
+  $ tattoo -t PolymerElements/paper-*
+
+See more examples at https://github.com/Polymer/tattoo
 `
     }));
-      process.exit(0);
+    process.exit(0);
   }
 }

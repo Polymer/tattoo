@@ -112,3 +112,39 @@ rm -rf tattoo_workspace
 ```
 tattoo -f
 ```
+
+***Get help on the cli***
+```
+tattoo -h
+
+tattoo (test all the things over & over)
+
+  Runs the web-components-tester on custom element git repositories.
+
+  Run test for a specific GitHub repository:
+  $ tattoo -t PolymerElements/paper-button
+
+  Run test for a whole bunch of GitHub repositories:
+  $ tattoo -t PolymerElements/paper-*
+
+  See more examples at https://github.com/Polymer/tattoo
+
+Options
+
+  -h, --help                    Print usage.
+  -t, --test string[]           Repositories to test.
+  -s, --skip-test string[]      Repositories not to test. Overrides the values from the --test
+  -r, --repo string[]           Explicit repos to load. Specifying explicit repos will disablerunning on the
+                                default set of repos for the user.
+  -e, --exclude-repo string[]   Repositories not to load. Overrides the values from the --repo flag.
+  -f, --fresh                   Set to clone all repos from remote instead of updating local copies.
+  -c, --config-file string      Specify path to a json file which contains base configuration values.
+                                Command-line options flags supercede values in file where they differ. If
+                                file is missing, Tattoo will ignore.
+  -g, --github-token string     Provide github token via command-line flag instead of "github-token" file.
+  -l, --latest-release          Set to update repos to the latest release when possible.
+  -v, --verbose                 Set to print output from failed tests.
+  -w, --wct-flags string[]      Set to specify flags passed to wct.
+  -d, --workspace-dir string    Override the default path "repos" where the repositories will be cloned and
+                                web-components-tester will run.
+```
