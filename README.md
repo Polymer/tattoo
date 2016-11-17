@@ -159,32 +159,30 @@ tattoo (test all the things over & over)
 
 Options
 
-  -t, --test string                 Repositories to test. (This is the default
-                                    option, so the --test/-t switch itself is
-                                    not required.)
-  -s, --skip-test string            Repositories not to test. Overrides the
-                                    values from the --test
-  -r, --repo string                 Explicit repos to load. Specifying explicit
-                                    repos will disablerunning on the default
-                                    set of repos for the user.
-  -e, --exclude-repo string         Repositories not to load. Overrides the
-                                    values from the --repo flag.
-  -f, --fresh true|false            Set to clone all repos from remote instead
-                                    of updating local copies.
-  -c, --config-file string          Specify path to a json file which contains
-                                    base configuration values. Command-line
-                                    options flags supercede values in file
-                                    where they differ. If file is missing,
-                                    Tattoo will ignore.
-  -g, --github-token string         Provide github token via command-line flag
-                                    instead of "github-token" file.
-  -l, --latest-release true|false   Set to update repos to the latest release
-                                    when possible.
-  -v, --verbose true|false          Set to print output from failed tests.
-  -w, --wct-flags string            Set to specify flags passed to wct.
-  -d, --workspace-dir string        Override the default path
-                                    "tattoo_workspace" where the repositories
-                                    will be cloned and web-components-tester
-                                    will run.
-  -h, --help true|false             Print this usage example.
+  -t, --test string[]           Repositories to test. (This is the default
+                                option, so the --test/-t switch itself is not
+                                required.)
+  -s, --skip-test string[]      Repositories not to test. Overrides the values
+                                from the --test
+  -r, --repo string[]           Explicit repos to load. Specifying explicit
+                                repos will disablerunning on the default set of
+                                repos for the user.
+  -e, --exclude-repo string[]   Repositories not to load. Overrides the values
+                                from the --repo flag.
+  -f, --fresh                   Set to clone all repos from remote instead of
+                                updating local copies.
+  -c, --config-file string      Specify path to a json file which contains base
+                                configuration values. Command-line options
+                                flags supercede values in file where they
+                                differ. If file is missing, Tattoo will ignore.
+  -g, --github-token string     Provide github token via command-line flag
+                                instead of "github-token" file.
+  -l, --latest-release          Set to update repos to the latest release when
+                                possible.
+  -v, --verbose                 Set to print output from failed tests.
+  -w, --wct-flags string[]      Set to specify flags passed to wct.
+  -d, --workspace-dir string    Override the default path "tattoo_workspace"
+                                where the repositories will be cloned and web-
+                                components-tester will run.
+  -h, --help                    Print this usage example.
 ```

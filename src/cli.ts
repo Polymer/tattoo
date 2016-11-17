@@ -48,30 +48,6 @@ export function getCommandLineOptions(): CliOptions {
   return <CliOptions>commandLineArgs(cliOptionDefinitions);
 }
 
-export function commandLineArgsUsageOptsToCommandLineUsageOptionList(
-    args: commandLineArgs.ArgDescriptor[]) {
-  const optionList = [];
-  for (const arg of args) {
-    const option = <any>{name: arg.name, description: arg.description};
-    if (arg.alias) {
-      option.alias = arg.alias;
-    }
-    if (arg.multiple) {
-      option.multiple = arg.multiple;
-    }
-    switch (arg.type) {
-      case Boolean:
-        option.typeLabel = 'true|false';
-        break;
-      case String:
-        option.typeLabel = 'string';
-        break;
-    }
-    optionList.push(option);
-  }
-  return optionList;
-}
-
 // TODO(usergenic): Consider a -b --bower-flags argument.
 export const cliOptionDefinitions = [
   {
@@ -289,10 +265,6 @@ export function getCliHelp(): string {
 
   See more examples at https://github.com/Polymer/tattoo`
     },
-    {
-      header: 'Options',
-      optionList: commandLineArgsUsageOptsToCommandLineUsageOptionList(
-          cliOptionDefinitions)
-    }
+    {header: 'Options', optionList: cliOptionDefinitions}
   ]);
 }
