@@ -165,8 +165,8 @@ export const cliOptionDefinitions = [
     alias: 'd',
     type: String,
     description:
-        'Override the default path "repos" where the repositories will be ' +
-        ' cloned and web-components-tester will run.'
+        'Override the default path "tattoo_workspace" where the repositories' +
+        ' will be cloned and web-components-tester will run.'
   },
   {
     name: 'help',

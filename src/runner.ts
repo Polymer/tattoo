@@ -112,7 +112,7 @@ export class Runner {
     this._verbose = !!options.verbose;
     this._wctFlags = options.wctFlags ? options.wctFlags.join(' ') : '';
     this._workspace = {
-      dir: (options.workspaceDir || './repos'),
+      dir: (options.workspaceDir || './tattoo_workspace'),
       repos: new Map()
     };
 
