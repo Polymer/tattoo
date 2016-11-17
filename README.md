@@ -69,42 +69,39 @@ Then run:
 tattoo
 ```
 
-Config files can contain most of the command-line options.ing any of the
-command-line options.
+Config files support most of the same options as the command-line flags:
 
-`"test": ["PolymerElements/paper-button#2.0-preview", "PolymerElements/*", etc]`
-Repositories to test.
+* `"test": ["PolymerElements/paper-button#2.0-preview", "PolymerElements/*", etc]`
+  Repositories to test.
+* `"skip-test": ["PolymerElements/iron-meta", "*/*-alpha", etc]`
+  Repositories not to test.  Filters out items from the `test` list.
+* `"repo": ["PolymerElements/iron-list", "PolymerElements/paper-*", etc]`
+  Explicit repos to clone into workspace, but not test.  This is useful if you
+  want to force a specific version of a web package that wouldn't be installed
+  by default.
 
-`"skip-test": ["PolymerElements/iron-meta", "*/*-alpha", etc]`
-Repositories not to test.  Filters out items from the `test` list.
+* `"exclude-repo": ["PolymerElements/style-guide", "*/*-deprecated", etc]`
+  Repositories not to load.  Filters out items from the `repo` list.
 
-`"repo": ["PolymerElements/iron-list", "PolymerElements/paper-*", etc]`
-Explicit repos to clone into workspace, but not test.  This is useful if you
-want to force a specific version of a web package that wouldn't be installed
-by default.
+* `"fresh": true|false`
+  Clears the workspace for each run, i.e. will clone all repos from remote
+  instead of updating local copies.
 
-`"exclude-repo": ["PolymerElements/style-guide", "*/*-deprecated", etc]`
-Repositories not to load.  Filters out items from the `repo` list.
+* `"github-token": "0123456789ABCDEF1337"`
+  Provide a github token via this setting instead of using "github-token" file.
 
-`"fresh": true|false`
-Clears the workspace for each run, i.e. will clone all repos from remote
-instead of updating local copies.
+* `"latest-release": true|false`
+  Set to update repos to the latest release when possible.
 
-`"github-token": "0123456789ABCDEF1337"`
-Provide a github token via this setting instead of using "github-token" file.
+* `"verbose": true|false`
+  When true, output all the things.
 
-`"latest-release": true|false`
-Set to update repos to the latest release when possible.
+* `"wct-flags": ["--local", "chrome"]`
+  Set to specify flags passed to wct.
 
-`"verbose": true|false`
-When true, output all the things.
-
-`"wct-flags": ["--local", "chrome"]`
-Set to specify flags passed to wct.
-
-`"workspace-dir": "/tmp/tattoo-workspace"`
-Specify a different target folder to clone repos and run web-components-tester
-from.
+* `"workspace-dir": "/tmp/tattoo-workspace"`
+  Specify a different target folder to clone repos and run web-components-tester
+  from.
 
 ***Clean up installation***
 ```
