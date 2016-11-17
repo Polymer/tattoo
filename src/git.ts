@@ -11,7 +11,6 @@
  * subject to an additional IP rights grant found at
  * http://polymer.github.io/PATENTS.txt
  */
-'use strict';
 
 /**
  * This file collects all of the functions for interacting with github and

@@ -12,15 +12,13 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
-'use strict';
-
-import {TestResult, TestResultValue} from './test-result';
-import {Workspace, WorkspaceRepo} from './workspace';
-import {existsSync} from './util';
-
 import * as child_process from 'child_process';
 import * as path from 'path';
 import * as resolve from 'resolve';
+
+import {TestResult, TestResultValue} from './test-result';
+import {existsSync} from './util';
+import {Workspace, WorkspaceRepo} from './workspace';
 
 class CompletedProcess {
   status: TestResultValue;

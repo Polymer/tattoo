@@ -12,7 +12,6 @@
  * subject to an additional IP rights grant found at
  * http://polymer.github.io/PATENTS.txt
  */
-'use strict';
 
 import {CliOptions, getCommandLineOptions, showCliHelp, loadConfigFileOptions, mergeConfigFileOptions, ensureGitHubToken} from '../cli';
 import {Runner, RunnerOptions} from '../runner';

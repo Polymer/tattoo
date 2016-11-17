@@ -12,8 +12,6 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
-'use strict';
-
 import * as github from 'github';
 import {Analyzer} from 'hydrolysis';
 import * as nodegit from 'nodegit';

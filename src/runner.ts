@@ -12,8 +12,6 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
-'use strict';
-
 declare function require(name: string): any; try {
   require('source-map-support').install();
 } catch (err) {
