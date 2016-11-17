@@ -68,22 +68,28 @@ tattoo PolymerElements/* -s PolymerElements/style-guide
 
 ***Test repos with a config.***
 
-Create a json config file with `branch-config` and/or `wctflags` keys:
-
-`tattoo_config.json`:
+Create a `tattoo_config.json` file to persist a base of options to tattoo.  For
+example:
 ```
 {
   "test": [
     "PolymerElements/paper-button#2.0-preview"
   ],
+  "verbose": true,
   "wctflags": ["--local", "canary"]
 }
 ```
-
-Then run:
+Tattoo will automatically find that file, load its options, and *then* apply
+any additional command line arguments.  So you could simply run with the config
+as-is by typing:
 
 ```
 tattoo
+```
+Or test the `paper-button` repo and the `paper-hat` repo by typing the
+following, since `paper-button` is in the config and arguments are additive.
+```
+tattoo PolymerElements/paper-hat
 ```
 
 Config files support most of the same options as the command-line flags:
