@@ -14,13 +14,13 @@
  */
 'use strict';
 
-import {CliOptions, cli, showCliHelp, loadConfigFileOptions, mergeConfigFileOptions, ensureGitHubToken} from '../cli';
+import {CliOptions, getCommandLineOptions, showCliHelp, loadConfigFileOptions, mergeConfigFileOptions, ensureGitHubToken} from '../cli';
 import {Runner, RunnerOptions} from '../runner';
 
 async function main() {
   console.time('tattoo');
   try {
-    const cliOptions: CliOptions = cli.parse();
+    const cliOptions: CliOptions = getCommandLineOptions();
     showCliHelp(cliOptions);
     mergeConfigFileOptions(cliOptions, loadConfigFileOptions(cliOptions));
     ensureGitHubToken(cliOptions);

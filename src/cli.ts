@@ -13,7 +13,7 @@
  */
 'use strict';
 
-import * as cliArgs from 'command-line-args';
+import * as commandLineArgs from 'command-line-args';
 import * as fs from 'fs';
 import {Runner, RunnerOptions} from './runner';
 
@@ -45,16 +45,45 @@ export interface ConfigFileOptions {
   'workspace-dir'?: string;
 }
 
+export function getCommandLineOptions(): CliOptions {
+  return <CliOptions>commandLineArgs(cliOptionDefinitions);
+}
+
+export function commandLineArgsUsageOptsToCommandLineUsageOptionList(
+    args: commandLineArgs.ArgDescriptor[]) {
+  const optionList = [];
+  for (const arg of args) {
+    const option = <any>{name: arg.name, description: arg.description};
+    if (arg.alias) {
+      option.alias = arg.alias;
+    }
+    if (arg.multiple) {
+      option.multiple = arg.multiple;
+    }
+    switch (arg.type) {
+      case Boolean:
+        option.typeLabel = 'true|false';
+        break;
+      case String:
+        option.typeLabel = 'string';
+        break;
+    }
+    optionList.push(option);
+  }
+  return optionList;
+}
+
 // TODO(usergenic): Consider a -b --bower-flags argument.
-export const cli = cliArgs([
-  {name: 'help', alias: 'h', type: Boolean, description: 'Print usage.'},
+export const cliOptionDefinitions = [
   {
     name: 'test',
+    alias: 't',
     type: String,
     defaultValue: [],
     multiple: true,
-    alias: 't',
-    description: 'Repositories to test.'
+    description: 'Repositories to test.  (This is the default option, so the ' +
+        '--test/-t switch itself is not required.)',
+    defaultOption: true
   },
   {
     name: 'skip-test',
@@ -138,8 +167,14 @@ export const cli = cliArgs([
     description:
         'Override the default path "repos" where the repositories will be ' +
         ' cloned and web-components-tester will run.'
+  },
+  {
+    name: 'help',
+    alias: 'h',
+    type: Boolean,
+    description: 'Print this usage example.'
   }
-]);
+];
 
 /**
  * Checks for github-token in the RunnerOptions and if not specified, will look
@@ -232,20 +267,28 @@ export function mergeConfigFileOptions(
  */
 export function showCliHelp(options: CliOptions) {
   if (options.help) {
-    console.log(cli.getUsage({
-      title: 'tattoo (test all the things over & over)',
-      description:
-          `Runs the web-components-tester on custom element git repositories.
+    const commandLineUsage = require('command-line-usage');
+    const usage = commandLineUsage([
+      {
+        header: 'tattoo (test all the things over & over)',
+        content:
+            `Runs the web-components-tester on custom element git repositories.
 
-Run test for a specific GitHub repository:
-  $ tattoo -t PolymerElements/paper-button
+  Run test for a specific GitHub repository:
+    $ tattoo PolymerElements/paper-button
 
-Run test for a whole bunch of GitHub repositories:
-  $ tattoo -t PolymerElements/paper-*
+  Run test for a whole bunch of GitHub repositories:
+    $ tattoo PolymerElements/paper-*
 
-See more examples at https://github.com/Polymer/tattoo
-`
-    }));
+  See more examples at https://github.com/Polymer/tattoo`
+      },
+      {
+        header: 'Options',
+        optionList: commandLineArgsUsageOptsToCommandLineUsageOptionList(
+            cliOptionDefinitions)
+      }
+    ]);
+    console.log(usage);
     process.exit(0);
   }
 }
