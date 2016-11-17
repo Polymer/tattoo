@@ -49,14 +49,31 @@ export interface ConfigFileOptions {
 export const cli = cliArgs([
   {name: 'help', alias: 'h', type: Boolean, description: 'Print usage.'},
   {
-    name: 'config-file',
-    alias: 'c',
+    name: 'test',
     type: String,
-    defaultValue: 'tattoo_config.json',
+    defaultValue: [],
+    multiple: true,
+    alias: 't',
+    description: 'Repositories to test.'
+  },
+  {
+    name: 'skip-test',
+    alias: 's',
+    type: String,
+    defaultValue: [],
+    multiple: true,
     description:
-        'Specify path to a json file which contains base configuration' +
-        ' values.  Command-line options flags supercede values in file ' +
-        ' where they differ.  If file is missing, Tattoo will ignore.'
+        'Repositories not to test.  Overrides the values from the --test'
+  },
+  {
+    name: 'repo',
+    alias: 'r',
+    type: String,
+    defaultValue: [],
+    multiple: true,
+    description:
+        'Explicit repos to load. Specifying explicit repos will disable' +
+        'running on the default set of repos for the user.'
   },
   {
     name: 'exclude-repo',
@@ -76,6 +93,16 @@ export const cli = cliArgs([
         'Set to clone all repos from remote instead of updating local copies.'
   },
   {
+    name: 'config-file',
+    alias: 'c',
+    type: String,
+    defaultValue: 'tattoo_config.json',
+    description:
+        'Specify path to a json file which contains base configuration' +
+        ' values.  Command-line options flags supercede values in file ' +
+        ' where they differ.  If file is missing, Tattoo will ignore.'
+  },
+  {
     name: 'github-token',
     alias: 'g',
     type: String,
@@ -88,35 +115,6 @@ export const cli = cliArgs([
     type: Boolean,
     defaultValue: false,
     description: 'Set to update repos to the latest release when possible.'
-  },
-  {
-    name: 'repo',
-    alias: 'r',
-    type: String,
-    defaultValue: [],
-    multiple: true,
-    description:
-        'Explicit repos to load. Specifying explicit repos will disable' +
-        'running on the default set of repos for the user.'
-  },
-  {
-    name: 'skip-test',
-    alias: 's',
-    type: String,
-    defaultValue: [],
-    multiple: true,
-    description:
-        'Repositories not to test.  Overrides the values from the --test'
-  },
-  {
-    name: 'test',
-    type: String,
-    defaultValue: [],
-    multiple: true,
-    alias: 't',
-    description:
-        'Repositories to test. All dependencies must be specified with --repo' +
-        ' or be included in the config file under repos.'
   },
   {
     name: 'verbose',
@@ -235,9 +233,14 @@ export function mergeConfigFileOptions(
 export function showCliHelp(options: CliOptions) {
   if (options.help) {
     console.log(cli.getUsage({
-      header: 'tattoo runs many tests at various branches!!',
       title: 'tattoo'
+      description: `
+tattoo runs the web-components-tester on custom element git repositories.
+repositories of custom element tests at various branches.
+
+$ tattoo [options]
+`
     }));
-    process.exit(0);
+      process.exit(0);
   }
 }
