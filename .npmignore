@@ -1,4 +1,5 @@
 .github-cachedb
-token
-repos
+github-token
+tattoo_config.json
+tattoo_workspace
 typings

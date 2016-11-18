@@ -11,16 +11,13 @@
  * subject to an additional IP rights grant found at
  * http://polymer.github.io/PATENTS.txt
  */
-'use strict';
 
-import {ElementRepo} from './element-repo';
+import {WorkspaceRepo} from './workspace';
 
 export interface TestResult {
   result: TestResultValue;
-
   output: string;
-
-  elementRepo: ElementRepo;
+  workspaceRepo: WorkspaceRepo;
 }
 
 export enum TestResultValue {
