@@ -49,10 +49,11 @@ export interface RunnerOptions {
   // already in-place.
   fresh?: boolean;
 
+  // TODO(usergenic): Not Yet Implemented
   // If true, repo clones will be pointed towards last tagged released version
   // instead of the default master branch.  This will not override explicit
   // refs in the  repo expression if present.
-  latestRelease?: boolean;
+  // latestRelease?: boolean;
 
   // An array of repo expressions defining the set of repos to require/load
   // but not specifically to test.

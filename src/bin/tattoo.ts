@@ -27,7 +27,8 @@ async function main() {
       excludeRepos: cliOptions['exclude-repo'],
       githubToken: cliOptions['github-token'],
       fresh: cliOptions['fresh'],
-      latestRelease: cliOptions['latest-release'],
+      // TODO(usergenic): Not Yet Implemented
+      // latestRelease: cliOptions['latest-release'],
       repos: cliOptions['repo'],
       skipTests: cliOptions['skip-test'],
       tests: cliOptions['test'],
