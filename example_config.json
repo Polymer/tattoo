@@ -1,7 +1,0 @@
-{
-  "branch-config": {
-    "polymer" : "Polymer/polymer#lazy-register-extends",
-    "paper-button" : "PolymerElements/paper-button#master"
-  },
-  "wctflags": ["-b", "canary"]
-}

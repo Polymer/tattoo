@@ -1,4 +1,4 @@
-declare module "nodegit" {
+declare module 'nodegit' {
   export class Signature { static now(name: string, email: string): Signature; }
   export class Cred {
     static userpassPlaintextNew(value: string, kind: string): Cred;
@@ -6,7 +6,9 @@ declare module "nodegit" {
   }
   export class Branch {
     static create(
-        repo: Repository, branchName: string, commit: Commit,
+        repo: Repository,
+        branchName: string,
+        commit: Commit,
         force: boolean): Promise<Reference>;
   }
 
@@ -23,9 +25,7 @@ declare module "nodegit" {
     credentials: CredentialsCallback;
   }
 
-  export class FetchOptions {
-    callbacks: FetchCallbacks;
-  }
+  export class FetchOptions { callbacks: FetchCallbacks; }
   class CloneOptions {
     fetchOpts: FetchOptions;
   }
@@ -36,17 +36,20 @@ declare module "nodegit" {
   export class Repository {
     static open(path: string): Promise<Repository>;
     createCommitOnHead(
-        filesToAdd: string[], author: Signature, committer: Signature,
+        filesToAdd: string[],
+        author: Signature,
+        committer: Signature,
         message: string): Promise<Oid>;
     getHeadCommit(): Promise<Commit>;
     setHead(refname: string): Promise<Number>;
     getBranchCommit(branch: string): Promise<Commit>;
-    checkoutBranch(branch: string | Reference): Promise<void>;
-    getRemote(remote: string): Promise<Remote>
-    fetchAll(fetchOpts: FetchOptions): Promise<void>
+    checkoutBranch(branch: string|Reference): Promise<void>;
+    getRemote(remote: string): Promise<Remote>;
+    fetch(remote: string, fetchOpts: FetchOptions): Promise<void>;
+    fetchAll(fetchOpts: FetchOptions): Promise<void>;
     defaultSignature(): Signature;
     setHeadDetached(commitish: Oid, a: any, b: any): Number;
-    getReferenceCommit(name: string | Reference): Promise<Commit>;
+    getReferenceCommit(name: string|Reference): Promise<Commit>;
     checkoutRef(ref: Reference): Promise<void>;
     path(): string;
     workdir(): string;
@@ -64,25 +67,19 @@ declare module "nodegit" {
   }
   export class Oid {}
   export class Tree {}
-  export class Commit {
-    id(): string
-  }
-  export class Reference {
-    static list(repo: Repository): Promise<any>
-  }
+  export class Commit { id(): string }
+  export class Reference { static list(repo: Repository): Promise<any> }
 
   export class Tag {
-    static list(repo: Repository): Promise<string[]>
-    static lookup(repo: Repository, id: string|Oid|Tag): Tag
-    targetId(): Oid
+    static list(repo: Repository): Promise<string[]>;
+    static lookup(repo: Repository, id: string|Oid|Tag): Tag;
+    targetId(): Oid;
   }
 
-  type TreeIsh  = Oid | Tree | Commit | Reference
+  type TreeIsh = Oid|Tree|Commit|Reference
 
 
-  export interface CheckoutOptions {
-    checkoutStrategy: Number;
-  }
+  export interface CheckoutOptions { checkoutStrategy: Number; }
 
   interface Strategies {
     FORCE: Number;
@@ -90,7 +87,7 @@ declare module "nodegit" {
 
   export class Checkout {
     static STRATEGY: Strategies;
-    static tree(repo: Repository, treeIsh: TreeIsh): Promise<void>
+    static tree(repo: Repository, treeIsh: TreeIsh): Promise<void>;
     static head(repo: Repository, options?: CheckoutOptions): Promise<void>
   }
 }

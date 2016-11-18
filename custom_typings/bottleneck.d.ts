@@ -1,5 +1,4 @@
-declare module "bottleneck" {
-
+declare module 'bottleneck' {
   interface PromiseProducer<T> {
     (...args: any[]): Promise<T>;
   }
@@ -9,10 +8,9 @@ declare module "bottleneck" {
     schedule<T>(promise: PromiseProducer<T>): Promise<T>;
     schedule<T>(promise: PromiseProducer<T>, A1: any): Promise<T>;
     schedule<T>(promise: PromiseProducer<T>, A1: any, A2: any): Promise<T>;
-    schedule<T>(promise: PromiseProducer<T>, A1: any, A2: any, A3: any): Promise<T>;
+    schedule<T>(promise: PromiseProducer<T>, A1: any, A2: any, A3: any):
+        Promise<T>;
   }
-  namespace Bottleneck {
-
-  }
+  namespace Bottleneck {}
   export = Bottleneck;
 }

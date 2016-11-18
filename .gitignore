@@ -2,9 +2,10 @@ rerun.sh
 .DS_Store
 .github-cachedb
 *.map
+lib
 node_modules
-token
-repos
+github-token
+tattoo_workspace
 *.js
 typings
 npm-debug.log

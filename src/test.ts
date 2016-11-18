@@ -12,15 +12,13 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
-'use strict';
-
-import {ElementRepo} from './element-repo';
-import {TestResult, TestResultValue} from './test-result';
-import {existsSync} from './util';
-
 import * as child_process from 'child_process';
 import * as path from 'path';
 import * as resolve from 'resolve';
+
+import {TestResult, TestResultValue} from './test-result';
+import {existsSync} from './util';
+import {Workspace, WorkspaceRepo} from './workspace';
 
 class CompletedProcess {
   status: TestResultValue;
@@ -40,18 +38,19 @@ class CompletedProcess {
 type ProcessResult = CompletedProcess|Error;
 
 export async function test(
-    element: ElementRepo, flags: string[]): Promise<TestResult> {
-  const dir = element.dir;
+    workspace: Workspace, repo: WorkspaceRepo, flags: string[]):
+    Promise<TestResult> {
+  const dir = path.join(workspace.dir, repo.dir);
   let testValue: TestResultValue;
   let testOutput: string;
   const wctCommand = 'wct';
   let spawnWct = new Promise<ProcessResult>((resolve, reject) => {
-    const exists = existsSync(path.join(element.dir, 'test'));
+    const exists = existsSync(path.join(dir, 'test'));
     if (!exists) {
       resolve(new CompletedProcess({status: TestResultValue.skipped}));
       return;
     }
-    const spawnParams = {cwd: element.dir};
+    const spawnParams = {cwd: dir};
     // Something about the buffering or VM reuse of child_process.exec
     // interacts extraordinarily poorly with wct, forcing the use
     // of child_process.spawn.
@@ -92,5 +91,5 @@ export async function test(
     testStatus = wctStatus.status;
     output = wctStatus.stdout;
   }
-  return {result: testStatus, output: output, elementRepo: element};
+  return {result: testStatus, output: output, workspaceRepo: repo};
 }
