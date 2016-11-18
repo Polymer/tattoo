@@ -484,9 +484,7 @@ export class Runner {
         console.log(
             'Tests for: ' + result.workspaceRepo.dir + ' status: ' +
             statusString);
-        if (this._verbose) {
-          console.log(result.output);
-        }
+        console.log(result.output);
       }
     }
     const total = passed + failed;
