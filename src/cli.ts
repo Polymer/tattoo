@@ -77,7 +77,7 @@ export const cliOptionDefinitions = [
     multiple: true,
     description:
         'Explicit repos to load. Specifying explicit repos will disable' +
-        'running on the default set of repos for the user.'
+        ' running on the default set of repos for the user.'
   },
   {
     name: 'exclude',

@@ -169,7 +169,7 @@ Options
   -s, --skip-test string[]     Repositories not to test. Overrides the values
                                from the --test
   -r, --require string[]       Explicit repos to load. Specifying explicit
-                               repos will disablerunning on the default set of
+                               repos will disable running on the default set of
                                repos for the user.
   -e, --exclude string[]       Repositories not to load. Overrides the values
                                from the --repo and --test flag.
@@ -188,3 +188,9 @@ Options
                                components-tester will run.
   -h, --help                   Print this usage example.
 ```
+
+***Known Issues***
+
+ * [#29](https://github.com/Polymer/tattoo/issues/29) Wildcard search only
+   works for Org owned repos, not for User owned.  Wildcard search for
+   username/* repo results in a 404 and terminates execution.
