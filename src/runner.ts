@@ -146,11 +146,6 @@ export class Runner {
     // Clone git repos.
     for (const name of this._workspace.repos.keys()) {
       const repo = this._workspace.repos.get(name);
-      if (util.isDirSync(repo.dir)) {
-        repo.nodegitRepo = await nodegit.Repository.open(
-            path.join(this._workspace.dir, repo.dir));
-        promises.push(this._github.update(repo.nodegitRepo));
-      }
       promises.push(
           this._github
               .cloneOrFetch(
