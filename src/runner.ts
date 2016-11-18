@@ -353,8 +353,7 @@ export class Runner {
 
   /**
    * Cleans up the workspace folder and fixes repos which may be in
-   * incomplete
-   * or bad state due to prior abended runs.
+   * incomplete or bad state due to previous abandoned runs.
    */
   async _prepareWorkspaceFolder() {
     const workspaceDir = this._workspace.dir;
