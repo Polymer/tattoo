@@ -8,7 +8,7 @@
   },
   "scripts": {
     "format": "find src custom_typings | grep '\\.ts$' | xargs clang-format --style=file -i",
-    "test": "tslint src/*.ts src/**/*.ts custom_typings/*.ts; mocha",
+    "test": "tslint src/*.ts src/*/*.ts custom_typings/*.ts; mocha",
     "build": "tsc",
     "tattoo": "node lib/bin/tattoo.js",
     "build:watch": "tsc -w",
