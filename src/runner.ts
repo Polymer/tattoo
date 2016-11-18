@@ -203,7 +203,8 @@ export class Runner {
       }
       promises.push(
           this._github
-              .clone(repo.githubRepo, path.join(this._workspace.dir, repo.dir))
+              .cloneOrFetch(
+                  repo.githubRepo, path.join(this._workspace.dir, repo.dir))
               .then(
                   (nodegitRepo) => git.checkout(
                       nodegitRepo, repo.githubRepoRef.checkoutRef)));

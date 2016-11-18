@@ -87,9 +87,11 @@ export class GitHubConnection {
 
   /**
    * Given a github repository and a directory to clone it into, return an
-   * ElementRepo once it has been cloned and checked out.
+   * ElementRepo once it has been cloned and checked out.  If the clone already
+   * exists, fetch the latest updates from the remote repository.
+   * TODO(usergenic): Split this into two methods?
    */
-  async clone(githubRepo: GitHub.Repo, cloneDir: string):
+  async cloneOrFetch(githubRepo: GitHub.Repo, cloneDir: string):
       Promise<nodegit.Repository> {
     let nodegitRepo: nodegit.Repository;
     if (util.existsSync(cloneDir)) {
@@ -103,9 +105,6 @@ export class GitHubConnection {
               })
               .then(() => updatedRepo);
     } else {
-      // Potential race condition if multiple repos w/ the same name are
-      // checked
-      // out simultaneously.
       nodegitRepo = await this._cloneRateLimiter.schedule(() => {
         return nodegit.Clone.clone(
             githubRepo.clone_url, cloneDir, this._cloneOptions);
