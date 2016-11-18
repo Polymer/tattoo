@@ -97,16 +97,17 @@ Config files support most of the same options as the command-line flags:
 * `"test": ["PolymerElements/paper-button#2.0-preview", "PolymerElements/*", etc]`
   Repositories to test.
 
-* `"skip-test": ["PolymerElements/iron-meta", "*/*-alpha", etc]`
-  Repositories not to test.  Filters out items from the `test` list.
-
-* `"repo": ["PolymerElements/iron-list", "PolymerElements/paper-*", etc]`
+* `"require": ["PolymerElements/iron-list", "PolymerElements/paper-*", etc]`
   Explicit repos to clone into workspace, but not test.  This is useful if you
   want to force a specific version of a web package that wouldn't be installed
   by default.
 
-* `"exclude-repo": ["PolymerElements/style-guide", "*/*-deprecated", etc]`
-  Repositories not to load.  Filters out items from the `repo` list.
+* `"exclude": ["PolymerElements/style-guide", "*/*-deprecated", etc]`
+  Repositories not to load.  Filters out items from the `test` and `require`
+  list.
+
+* `"skip-test": ["PolymerElements/iron-meta", "*/*-alpha", etc]`
+  Repositories not to test.
 
 * `"fresh": true|false`
   Clears the workspace for each run, i.e. will clone all repos from remote
@@ -162,28 +163,28 @@ tattoo (test all the things over & over)
 
 Options
 
-  -t, --test string[]           Repositories to test. (This is the default
-                                option, so the --test/-t switch itself is not
-                                required.)
-  -s, --skip-test string[]      Repositories not to test. Overrides the values
-                                from the --test
-  -r, --repo string[]           Explicit repos to load. Specifying explicit
-                                repos will disablerunning on the default set of
-                                repos for the user.
-  -e, --exclude-repo string[]   Repositories not to load. Overrides the values
-                                from the --repo flag.
-  -f, --fresh                   Set to clone all repos from remote instead of
-                                updating local copies.
-  -c, --config-file string      Specify path to a json file which contains base
-                                configuration values. Command-line options
-                                flags supercede values in file where they
-                                differ. If file is missing, Tattoo will ignore.
-  -g, --github-token string     Provide github token via command-line flag
-                                instead of "github-token" file.
-  -v, --verbose                 Set to print output from failed tests.
-  -w, --wct-flags string[]      Set to specify flags passed to wct.
-  -d, --workspace-dir string    Override the default path "tattoo_workspace"
-                                where the repositories will be cloned and web-
-                                components-tester will run.
-  -h, --help                    Print this usage example.
+  -t, --test string[]          Repositories to test. (This is the default
+                               option, so the --test/-t switch itself is not
+                               required.)
+  -s, --skip-test string[]     Repositories not to test. Overrides the values
+                               from the --test
+  -r, --require string[]       Explicit repos to load. Specifying explicit
+                               repos will disablerunning on the default set of
+                               repos for the user.
+  -e, --exclude string[]       Repositories not to load. Overrides the values
+                               from the --repo and --test flag.
+  -f, --fresh                  Set to clone all repos from remote instead of
+                               updating local copies.
+  -c, --config-file string     Specify path to a json file which contains base
+                               configuration values. Command-line options flags
+                               supercede values in file where they differ. If
+                               file is missing, Tattoo will ignore.
+  -g, --github-token string    Provide github token via command-line flag
+                               instead of "github-token" file.
+  -v, --verbose                Set to print output from failed tests.
+  -w, --wct-flags string[]     Set to specify flags passed to wct.
+  -d, --workspace-dir string   Override the default path "tattoo_workspace"
+                               where the repositories will be cloned and web-
+                               components-tester will run.
+  -h, --help                   Print this usage example.
 ```

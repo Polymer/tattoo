@@ -18,12 +18,12 @@ import {Runner, RunnerOptions} from './runner';
 
 export interface CliOptions {
   'config-file'?: string;
-  'exclude-repo'?: string[];
+  'exclude'?: string[];
   'github-token'?: string;
   'fresh'?: boolean;
   'help'?: boolean;
   // 'latest-release'?: boolean;
-  'repo'?: string[];
+  'require'?: string[];
   'skip-test'?: string[];
   'test'?: string[];
   'verbose'?: boolean;
@@ -32,11 +32,11 @@ export interface CliOptions {
 }
 
 export interface ConfigFileOptions {
-  'exclude-repo'?: string[];
+  'exclude'?: string[];
   'github-token'?: string;
   'fresh'?: boolean;
   // 'latest-release'?: boolean;
-  'repo'?: string[];
+  'require'?: string[];
   'skip-test'?: string[];
   'test'?: string[];
   'verbose'?: boolean;
@@ -70,7 +70,7 @@ export const cliOptionDefinitions = [
         'Repositories not to test.  Overrides the values from the --test'
   },
   {
-    name: 'repo',
+    name: 'require',
     alias: 'r',
     type: String,
     defaultValue: [],
@@ -80,14 +80,14 @@ export const cliOptionDefinitions = [
         'running on the default set of repos for the user.'
   },
   {
-    name: 'exclude-repo',
+    name: 'exclude',
     alias: 'e',
     type: String,
     defaultValue: [],
     multiple: true,
     description:
         'Repositories not to load.  Overrides the values from the --repo' +
-        ' flag.'
+        ' and --test flag.'
   },
   {
     name: 'fresh',
@@ -225,7 +225,7 @@ export function mergeConfigFileOptions(
     }
   }
 
-  mergeArray('exclude-repo');
+  mergeArray('exclude');
   mergeBasic('github-token', 'string');
   mergeBasic('fresh', 'boolean');
   // mergeBasic('latest-release', 'boolean');

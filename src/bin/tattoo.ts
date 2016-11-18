@@ -24,12 +24,12 @@ async function main() {
     mergeConfigFileOptions(cliOptions, loadConfigFileOptions(cliOptions));
     ensureGitHubToken(cliOptions);
     const runnerOptions: RunnerOptions = {
-      excludeRepos: cliOptions['exclude-repo'],
+      excludes: cliOptions['exclude'],
       githubToken: cliOptions['github-token'],
       fresh: cliOptions['fresh'],
       // TODO(usergenic): Not Yet Implemented
       // latestRelease: cliOptions['latest-release'],
-      repos: cliOptions['repo'],
+      requires: cliOptions['require'],
       skipTests: cliOptions['skip-test'],
       tests: cliOptions['test'],
       verbose: cliOptions['verbose'],

@@ -40,7 +40,7 @@ import {Workspace, WorkspaceRepo} from './workspace';
  */
 export interface RunnerOptions {
   // An array of repo expressions for filtering out repos to load.
-  excludeRepos?: string[];
+  excludes?: string[];
 
   // The github token needed to use the github API.
   githubToken: string;
@@ -57,7 +57,7 @@ export interface RunnerOptions {
 
   // An array of repo expressions defining the set of repos to require/load
   // but not specifically to test.
-  repos?: string[];
+  requires?: string[];
 
   // An array of repo expressions representing repos to exclude from testing
   // should any matching ones be encountered in the tests array.
@@ -75,20 +75,20 @@ export interface RunnerOptions {
   wctFlags?: string[];
 
   // The folder to clone repositories into and run tests from.  Defaults to
-  // './repos' if not provided.
+  // './tattoo_workspace' if not provided.
   workspaceDir?: string;
 }
 
 export class Runner {
   // The repository patterns we do not want to load.
-  private _excludeRepos: string[];
+  private _excludes: string[];
 
   // Always clone a fresh copy of the repository (don't just update existing
   // clone.)
   private _fresh: boolean;
 
   private _github?: git.GitHubConnection;
-  private _repos: string[];
+  private _requires: string[];
   private _skipTests: string[];
   private _tests: string[];
   private _testRateLimiter: Bottleneck;
@@ -99,12 +99,12 @@ export class Runner {
   // TODO(usergenic): This constructor is getting long.  Break up some of
   // these stanzas into supporting methods.
   constructor(options: RunnerOptions) {
-    this._excludeRepos = options.excludeRepos || [];
+    this._excludes = options.excludes || [];
     this._fresh = !!options.fresh;
     // TODO(usergenic): Pass an option to gitUtil.connectToGitHub for the
     // rate limiter it uses.
     this._github = new git.GitHubConnection(options.githubToken);
-    this._repos = options.repos || [];
+    this._requires = options.requires || [];
     this._skipTests = options.skipTests || [];
     this._tests = options.tests || [];
     this._verbose = !!options.verbose;
@@ -120,9 +120,9 @@ export class Runner {
     if (this._verbose) {
       console.log('Tattoo Runner configuration:');
       console.log({
-        excludeRepos: this._excludeRepos,
+        excludes: this._excludes,
         fresh: this._fresh,
-        repos: this._repos,
+        requires: this._requires,
         skipTests: this._skipTests,
         tests: this._tests,
         wctFlags: this._wctFlags,
@@ -168,7 +168,7 @@ export class Runner {
 
   /**
    * Given the arrays of repos and tests, expand the set (where wildcards are
-   * employed) and then reduce the set with excludeRepos, and set the workspace
+   * employed) and then reduce the set with excludes, and set the workspace
    * repos appropriately.
    * TODO(usergenic): This method is getting long.  Break it up into sub-methods
    * perhaps one for expanding the set of repos by going to github etc and
@@ -180,23 +180,27 @@ export class Runner {
     if (this._verbose) {
       console.log('Determining workspace repos...');
     }
+
+    const excludes: git.GitHubRepoRef[] =
+        this._excludes.map(git.parseGitHubRepoRefString);
+    const skipTests: git.GitHubRepoRef[] =
+        this._skipTests.map(git.parseGitHubRepoRefString);
+
     // Expand all repos and filter out the excluded repos
     const expandedRepos: git.GitHubRepoRef[] =
         (await this._expandWildcardRepoRefs(
-             this._repos.map(git.parseGitHubRepoRefString)))
+             this._requires.map(git.parseGitHubRepoRefString)))
             .filter(
-                repo => !this._excludeRepos.some(
-                    exclude => git.matchRepoRef(
-                        git.parseGitHubRepoRefString(exclude), repo)));
+                repo =>
+                    !excludes.some(exclude => git.matchRepoRef(exclude, repo)));
 
-    // Expand all tests and filter out the skipped tests
+    // Expand all tests and filter out the excluded repos
     const expandedTests: git.GitHubRepoRef[] =
         (await this._expandWildcardRepoRefs(
              this._tests.map(git.parseGitHubRepoRefString)))
             .filter(
-                test => !this._skipTests.some(
-                    skip => git.matchRepoRef(
-                        git.parseGitHubRepoRefString(skip), test)));
+                test =>
+                    !excludes.some(exclude => git.matchRepoRef(exclude, test)));
 
     // TODO(usergenic): Maybe we should be obtaining the package name here
     // from the repository's bower.json or package.json.
@@ -212,18 +216,32 @@ export class Runner {
 
     // Build the map of repos by name
     for (const repoRef of githubRepoRefs) {
-      // TODO(usergenic): This error is a bit strict and also doesn't reveal
-      // enough data to help troubleshoot.  I.e. what is the full config of
-      // the existing repo.  Update this message.
-      if (this._workspace.repos[repoRef.repoName]) {
-        throw new Error(
-            `More than repo with name '${repoRef.repoName}' defined.`);
+      // When there is a name collision, we will allow subsequent entries to
+      // act as overrides, as long as they represent the same actual repo for
+      // the same owner.  We only want to bail if there's a genuine conflict
+      // between the repo origins.
+      // TODO(usergenic): May want to warn on collisions, just to reduce
+      // surprise side effects of bad invocations etc.
+      if (this._workspace.repos.has(repoRef.repoName)) {
+        const existingRepo = this._workspace.repos.get(repoRef.repoName);
+        if (existingRepo.githubRepoRef.ownerName.toLowerCase() !==
+                repoRef.ownerName.toLowerCase() ||
+            existingRepo.githubRepoRef.repoName.toLowerCase() !==
+                repoRef.repoName.toLowerCase()) {
+          throw new Error(
+              `Can not build workspace: more than one repo with name ` +
+              ` "${repoRef.repoName}":\n` +
+              `  (${git.serializeGitHubRepoRef(
+                  existingRepo.githubRepoRef)} and ` +
+              `  ${git.serializeGitHubRepoRef(repoRef)})`);
+        }
       }
-
       this._workspace.repos.set(repoRef.repoName, {
         githubRepoRef: repoRef,
         dir: repoRef.repoName,
-        test: expandedTests.some(test => git.matchRepoRef(test, repoRef)),
+        test:
+            (expandedTests.some(test => git.matchRepoRef(test, repoRef)) &&
+             !skipTests.some(skip => git.matchRepoRef(skip, repoRef))),
         githubRepo: githubRepos.find(
             githubRepo => git.matchRepoRef(
                 git.parseGitHubRepoRefString(githubRepo.full_name), repoRef))
