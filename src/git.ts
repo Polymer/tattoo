@@ -90,6 +90,8 @@ export class GitHubConnection {
    * ElementRepo once it has been cloned and checked out.  If the clone already
    * exists, fetch the latest updates from the remote repository.
    * TODO(usergenic): Split this into two methods?
+   * TODO(usergenic): The two let variables here are obnoxious; clean them up.
+   *   See: https://github.com/Polymer/tattoo/pull/22#discussion_r88372397
    */
   async cloneOrFetch(githubRepo: GitHub.Repo, cloneDir: string):
       Promise<nodegit.Repository> {
