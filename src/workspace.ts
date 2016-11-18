@@ -13,7 +13,6 @@
  */
 
 import * as github from 'github';
-import {Analyzer} from 'hydrolysis';
 import * as nodegit from 'nodegit';
 
 import {GitHubRepoRef} from './git';

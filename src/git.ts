@@ -126,7 +126,7 @@ export class GitHubConnection {
           // TODO(usergenic): Patch to _handle_ redirects and/or include
           // details in error messaging.  This was encountered because we
           // tried to request Polymer/hydrolysis which has been renamed to
-          // Polymer/polymer-analyzer.
+          // Polymer/polymer-analyzer and the API doesn't auto-follow this.
           if (isRedirect(response)) {
             console.log('Repo ${owner}/${repo} has moved permanently.');
             console.log(response);

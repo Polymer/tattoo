@@ -20,7 +20,6 @@ declare function require(name: string): any; try {
 import * as Bottleneck from 'bottleneck';
 import * as child_process from 'child_process';
 import * as fs from 'fs';
-import * as hydrolysis from 'hydrolysis';
 import * as GitHub from 'github';
 import * as nodegit from 'nodegit';
 import * as pad from 'pad';
@@ -132,56 +131,6 @@ export class Runner {
   }
 
   /**
- * Analyzes all of the HTML in 'repos/*' with hydrolysis.
- *
- * @returns a promise of the hydrolysis.Analyzer with all of the info loaded.
- */
-  async _analyzeRepos() {
-    const dirs = fs.readdirSync(this._workspace.dir);
-    const htmlFiles: string[] = [];
-
-    for (const dir of dirs) {
-      for (const fn of fs.readdirSync(path.join('repos', dir))) {
-        if (/index\.html|dependencies\.html/.test(fn) ||
-            !fn.endsWith('.html')) {
-          continue;
-        }
-        // We want to ignore files with 'demo' in them, unless the element's
-        // directory has the word 'demo' in it, in which case that's
-        // the whole point of the element.
-        if (!/\bdemo\b/.test(dir) && /demo/.test(fn)) {
-          continue;
-        }
-        htmlFiles.push(path.join('repos', dir, fn));
-      }
-    }
-
-    function filter(repo: string) {
-      return !util.existsSync(repo);
-    }
-
-    // This code is conceptually simple, it's only complex due to ordering
-    // and the progress bar. Basically we call analyzer.metadataTree on each
-    // html file in sequence, then finally call analyzer.annotate() and return.
-    const analyzer = await hydrolysis.Analyzer.analyze(
-        path.join(this._workspace.dir, 'polymer', 'polymer.html'), {filter});
-
-    const progressBar =
-        util.standardProgressBar('Analyzing...', htmlFiles.length + 1);
-
-    for (const htmlFile of htmlFiles) {
-      await analyzer.metadataTree(htmlFile);
-      progressBar.tick(
-          {msg: util.progressMessage(`Analyzing ${htmlFile.slice(6)}`)});
-    }
-
-    progressBar.tick(
-        {msg: util.progressMessage('Analyzing with hydrolysis...')});
-    analyzer.annotate();
-    return analyzer;
-  }
-
-  /**
    * Given all the repos defined in the workspace, lets iterate through them
    * and either clone them or update their clones and set them to the specific
    * refs.
@@ -250,10 +199,6 @@ export class Runner {
 
     // TODO(usergenic): Maybe we should be obtaining the package name here
     // from the repository's bower.json or package.json.
-
-    // NOTE(usergenic): We might need this here.  The old repo list included
-    // hydrolysis:
-    // allRepos.push(gitUtil.parseRepoExpression('Polymer/polymer-analyzer'));
 
     // Need to download all the GitHub.Repo representations for these.
     const githubRepoRefs: git.GitHubRepoRef[] =

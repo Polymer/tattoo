@@ -35,7 +35,6 @@
     "dom5": "^1.3.1",
     "escape-string-regexp": "^1.0.5",
     "github": "^0.2.0",
-    "hydrolysis": "^1.19.3",
     "nodegit": "^0.16.0",
     "pad": "^1.0.0",
     "progress": "^1.1.8",
