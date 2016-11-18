@@ -115,11 +115,14 @@ Config files support most of the same options as the command-line flags:
 * `"github-token": "0123456789ABCDEF1337"`
   Provide a github token via this setting instead of using "github-token" file.
 
+<!--
+TODO(usergenic): Not Yet Implemented
 * `"latest-release": true|false`
   Set to update repos to their latest release when possible and when a specific
   `#ref` is not included in their name.  When no `#ref` is given and the
   `latest-release` option is false or not given, repos are checked out at HEAD,
   which is conventionally their `master` branch.
+-->
 
 * `"verbose": true|false`
   When true, output all the things.
@@ -177,8 +180,6 @@ Options
                                 differ. If file is missing, Tattoo will ignore.
   -g, --github-token string     Provide github token via command-line flag
                                 instead of "github-token" file.
-  -l, --latest-release          Set to update repos to the latest release when
-                                possible.
   -v, --verbose                 Set to print output from failed tests.
   -w, --wct-flags string[]      Set to specify flags passed to wct.
   -d, --workspace-dir string    Override the default path "tattoo_workspace"

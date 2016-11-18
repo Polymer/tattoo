@@ -22,7 +22,7 @@ export interface CliOptions {
   'github-token'?: string;
   'fresh'?: boolean;
   'help'?: boolean;
-  'latest-release'?: boolean;
+  // 'latest-release'?: boolean;
   'repo'?: string[];
   'skip-test'?: string[];
   'test'?: string[];
@@ -35,7 +35,7 @@ export interface ConfigFileOptions {
   'exclude-repo'?: string[];
   'github-token'?: string;
   'fresh'?: boolean;
-  'latest-release'?: boolean;
+  // 'latest-release'?: boolean;
   'repo'?: string[];
   'skip-test'?: string[];
   'test'?: string[];
@@ -113,13 +113,14 @@ export const cliOptionDefinitions = [
     description: 'Provide github token via command-line flag instead of ' +
         '"github-token" file.'
   },
-  {
-    name: 'latest-release',
-    alias: 'l',
-    type: Boolean,
-    defaultValue: false,
-    description: 'Set to update repos to the latest release when possible.'
-  },
+  // TODO(usergenic): Not Yet Implemented
+  // {
+  //   name: 'latest-release',
+  //   alias: 'l',
+  //   type: Boolean,
+  //   defaultValue: false,
+  //   description: 'Set to update repos to the latest release when possible.'
+  // },
   {
     name: 'verbose',
     alias: 'v',
@@ -227,7 +228,7 @@ export function mergeConfigFileOptions(
   mergeArray('exclude-repo');
   mergeBasic('github-token', 'string');
   mergeBasic('fresh', 'boolean');
-  mergeBasic('latest-release', 'boolean');
+  // mergeBasic('latest-release', 'boolean');
   mergeArray('repo');
   mergeArray('skip-test');
   mergeArray('test');
