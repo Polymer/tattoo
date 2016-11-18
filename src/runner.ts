@@ -215,7 +215,8 @@ export class Runner {
       // enough data to help troubleshoot.  I.e. what is the full config of
       // the existing repo.  Update this message.
       if (this._workspace.repos[repoRef.repoName]) {
-        throw(`More than repo with name '${repoRef.repoName}' defined.`);
+        throw new Error(
+            `More than repo with name '${repoRef.repoName}' defined.`);
       }
 
       this._workspace.repos.set(repoRef.repoName, {

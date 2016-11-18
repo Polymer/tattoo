@@ -132,7 +132,7 @@ export class GitHubConnection {
           if (isRedirect(response)) {
             console.log('Repo ${owner}/${repo} has moved permanently.');
             console.log(response);
-            throw(`Repo ${owner}/${repo} could not be loaded.`);
+            throw new Error(`Repo ${owner}/${repo} could not be loaded.`);
           }
           return response;
         });
@@ -221,7 +221,8 @@ export function parseGitHubRepoRefString(refString: string): GitHubRepoRef {
   const slashSplit = hashSplit[0].split('/');
 
   if (slashSplit.length !== 2 || hashSplit.length > 2) {
-    throw(`Repo '${refString}' is not in form user/repo or user/repo#ref`);
+    throw new Error(
+        `Repo '${refString}' is not in form user/repo or user/repo#ref`);
   }
 
   const owner = slashSplit[0];
