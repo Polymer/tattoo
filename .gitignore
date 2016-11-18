@@ -5,7 +5,7 @@ rerun.sh
 lib
 node_modules
 github-token
-repos
+tattoo_workspace
 *.js
 typings
 npm-debug.log
