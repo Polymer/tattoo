@@ -302,8 +302,17 @@ export class Runner {
       if (repoRef.repoName.match(/\*/)) {
         expandedRepoRefs.push.apply(
             expandedRepoRefs,
-            allGitHubRepoRefs.filter(
-                otherRepoRef => git.matchRepoRef(repoRef, otherRepoRef)));
+            allGitHubRepoRefs
+                .filter(otherRepoRef => git.matchRepoRef(repoRef, otherRepoRef))
+                .map(otherRepoRef => {
+                  // Set the checkoutRef of the matched repos to the
+                  // checkoutRef of the wildcard.
+                  return {
+                    ownerName: otherRepoRef.ownerName,
+                    repoName: otherRepoRef.repoName,
+                    checkoutRef: repoRef.checkoutRef
+                  };
+                }));
       } else {
         expandedRepoRefs.push(repoRef);
       }

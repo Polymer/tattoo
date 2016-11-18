@@ -235,6 +235,10 @@ export function parseGitHubRepoRefString(refString: string): GitHubRepoRef {
 /**
  * @returns whether the matcherRef matches the targetRef, which allows for the
  *     case-insensitive match as well as wildcards.
+ * TODO(usergenic): This method intentionally doesn't match the checkout refs
+ * of two repo refs.  We'll need this method to support an option to do so in
+ * order to support wildcard exclude and skip-tests options to filter out items
+ * by checkout refs.
  */
 export function matchRepoRef(
     matcherRef: GitHubRepoRef, targetRef: GitHubRepoRef): boolean {
