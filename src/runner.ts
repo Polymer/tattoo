@@ -305,9 +305,8 @@ export class Runner {
             allGitHubRepoRefs
                 .filter(otherRepoRef => git.matchRepoRef(repoRef, otherRepoRef))
                 .map(otherRepoRef => {
-                  // Set the checkoutRef of the matcVhed repos to the
-                  // checkoutRef
-                  // of the wildcard.
+                  // Set the checkoutRef of the matched repos to the
+                  // checkoutRef of the wildcard.
                   return {
                     ownerName: otherRepoRef.ownerName,
                     repoName: otherRepoRef.repoName,
