@@ -66,6 +66,11 @@ skipped/excluded.
 tattoo PolymerElements/* -s PolymerElements/style-guide
 ```
 
+***Test repos with different browser***
+```
+tattoo PolymerElements/* --wct-flags="--local safari"
+```
+
 ***Test repos with a config.***
 
 Create a `tattoo_config.json` file to persist a base of options to tattoo.  For
@@ -73,10 +78,13 @@ example:
 ```
 {
   "test": [
-    "PolymerElements/paper-button#2.0-preview"
+    "PolymerElements/paper-*"
   ],
+  "require": [
+    "Polymer/polymer#2.0-preview"
+  ]
   "verbose": true,
-  "wctflags": ["--local", "canary"]
+  "wctflags": ["--local canary", "--color"]
 }
 ```
 Tattoo will automatically find that file, load its options, and *then* apply
@@ -116,19 +124,10 @@ Config files support most of the same options as the command-line flags:
 * `"github-token": "0123456789ABCDEF1337"`
   Provide a github token via this setting instead of using "github-token" file.
 
-<!--
-TODO(usergenic): Not Yet Implemented
-* `"latest-release": true|false`
-  Set to update repos to their latest release when possible and when a specific
-  `#ref` is not included in their name.  When no `#ref` is given and the
-  `latest-release` option is false or not given, repos are checked out at HEAD,
-  which is conventionally their `master` branch.
--->
-
 * `"verbose": true|false`
   When true, output all the things.
 
-* `"wct-flags": ["--local", "chrome"]`
+* `"wct-flags": ["--local chrome"]`
   Set to specify flags passed to wct.
 
 * `"workspace-dir": "/tmp/tattoo-workspace"`
@@ -188,9 +187,3 @@ Options
                                components-tester will run.
   -h, --help                   Print this usage example.
 ```
-
-***Known Issues***
-
- * [#29](https://github.com/Polymer/tattoo/issues/29) Wildcard search only
-   works for Org owned repos, not for User owned.  Wildcard search for
-   username/* repo results in a 404 and terminates execution.
