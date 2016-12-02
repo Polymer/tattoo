@@ -5,6 +5,9 @@ declare module 'github' {
       getFromOrg(
           msg: GitHubApi.GetFromOrgOpts,
           cb: NodeCallback<GitHubApi.Repo[]>): void;
+      getFromUser(
+          msg: GitHubApi.GetFromUserOpts,
+          cb: NodeCallback<GitHubApi.Repo[]>): void;
       get(msg: {user: string, repo: string},
           cb: NodeCallback<GitHubApi.Repo>): void;
     });
@@ -49,6 +52,11 @@ declare module 'github' {
     }
     interface GetFromOrgOpts {
       org: string;
+      per_page?: number;
+      page?: number;
+    }
+    interface GetFromUserOpts {
+      user: string;
       per_page?: number;
       page?: number;
     }
