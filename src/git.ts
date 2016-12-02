@@ -99,7 +99,7 @@ export class GitHubConnection {
     if (util.existsSync(cloneDir)) {
       const openRepo = await nodegit.Repository.open(cloneDir);
       if (openRepo) {
-        return this._cloneRateLimiter
+        return await this._cloneRateLimiter
             .schedule(() => openRepo.fetchAll(this._cloneOptions.fetchOpts))
             .then(() => openRepo);
       }
