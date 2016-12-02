@@ -42,6 +42,7 @@ declare module 'nodegit' {
         message: string): Promise<Oid>;
     getHeadCommit(): Promise<Commit>;
     setHead(refname: string): Promise<Number>;
+    getBranch(refname: string): Promise<Reference>;
     getBranchCommit(branch: string): Promise<Commit>;
     checkoutBranch(branch: string|Reference): Promise<void>;
     getRemote(remote: string): Promise<Remote>;

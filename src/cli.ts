@@ -22,7 +22,6 @@ export interface CliOptions {
   'github-token'?: string;
   'fresh'?: boolean;
   'help'?: boolean;
-  // 'latest-release'?: boolean;
   'require'?: string[];
   'skip-test'?: string[];
   'test'?: string[];
@@ -35,7 +34,6 @@ export interface ConfigFileOptions {
   'exclude'?: string[];
   'github-token'?: string;
   'fresh'?: boolean;
-  // 'latest-release'?: boolean;
   'require'?: string[];
   'skip-test'?: string[];
   'test'?: string[];
@@ -45,7 +43,32 @@ export interface ConfigFileOptions {
 }
 
 export function getCommandLineOptions(): CliOptions {
-  return <CliOptions>commandLineArgs(cliOptionDefinitions);
+  const argv = process.argv.slice(2).map((arg) => {
+    // HACK(usergenic): The command-line-args package has a problem with values
+    // of flags that look like flags.  To work around this problem, we prefix
+    // all dash-prefixed values with a space in any assignment-style flag that
+    // uses a '=' so that the values don't get matched as potential options.
+    // To remove the space prefix, we trim all string attributes.
+    const match = arg.match(/^(--\S+|-\S)=(?:"(-.+)"|'(-.+)'|(-.+))$/);
+    if (match) {
+      return `${match[1]}= ${match[2] || match[3] || match[4]}`;
+    } else {
+      return arg;
+    }
+  });
+  const cliOptions = <CliOptions>commandLineArgs(cliOptionDefinitions, argv);
+  for (const option
+           of ['test', 'exclude', 'skip-test', 'require', 'wct-flags']) {
+    if (cliOptions[option]) {
+      cliOptions[option] = cliOptions[option].map((str) => str.trim());
+    }
+  }
+  for (const option of ['config-file', 'github-token', 'workspace-dir']) {
+    if (cliOptions[option]) {
+      cliOptions[option] = cliOptions[option].trim();
+    }
+  }
+  return cliOptions;
 }
 
 // TODO(usergenic): Consider a -b --bower-flags argument.
@@ -113,14 +136,6 @@ export const cliOptionDefinitions = [
     description: 'Provide github token via command-line flag instead of ' +
         '"github-token" file.'
   },
-  // TODO(usergenic): Not Yet Implemented
-  // {
-  //   name: 'latest-release',
-  //   alias: 'l',
-  //   type: Boolean,
-  //   defaultValue: false,
-  //   description: 'Set to update repos to the latest release when possible.'
-  // },
   {
     name: 'verbose',
     alias: 'v',
@@ -133,7 +148,6 @@ export const cliOptionDefinitions = [
     alias: 'w',
     multiple: true,
     type: String,
-    defaultValue: ['--local chrome'],
     description: 'Set to specify flags passed to wct.'
   },
   {
@@ -228,7 +242,6 @@ export function mergeConfigFileOptions(
   mergeArray('exclude');
   mergeBasic('github-token', 'string');
   mergeBasic('fresh', 'boolean');
-  // mergeBasic('latest-release', 'boolean');
   mergeArray('repo');
   mergeArray('skip-test');
   mergeArray('test');

@@ -137,11 +137,9 @@ export class Runner {
    * refs.
    */
   async _cloneOrUpdateWorkspaceRepos() {
-    if (this._verbose) {
-      console.log('Cloning/updating workspace repos...');
-    }
-
     const promises: Promise<nodegit.Repository>[] = [];
+    const checkoutFails: {name: string, error: Error}[] = [];
+    const explicitRequires: string[] = this._tests.concat(this._requires);
 
     // Clone git repos.
     for (const name of this._workspace.repos.keys()) {
@@ -150,15 +148,43 @@ export class Runner {
           this._github
               .cloneOrFetch(
                   repo.githubRepo, path.join(this._workspace.dir, repo.dir))
-              .then(
-                  (nodegitRepo) => git.checkout(
-                      nodegitRepo, repo.githubRepoRef.checkoutRef)));
+              .then((nodegitRepo) => {
+                repo.nodegitRepo = nodegitRepo;
+                // If we don't have a specific checkoutRef, lets leave the repo
+                // HEAD pointed to where it's at.
+                if (repo.githubRepoRef.checkoutRef) {
+                  return git.checkoutOriginRef(
+                      nodegitRepo, repo.githubRepoRef.checkoutRef);
+                }
+              })
+              // TODO(usergenic): Check for the specific error case, but
+              // for now we treat these as "the ref doesn't exist".  It
+              // is expected that an error could exist if the checkout
+              // fails because of local repo changes preventing it as
+              // well.
+              .catch((err) => {
+                checkoutFails.push({name: name, error: err});
+              }));
     }
 
     // TODO(usergenic): We probably want to track the set of repos completed so
     // we can identify the problem repos in case error messages come back
     // without enough context for users to debug.
     await util.promiseAllWithProgress(promises, 'Cloning/Updating repos...');
+
+
+    if (checkoutFails.length > 0) {
+      for (const checkoutFail of checkoutFails) {
+        const repo = this._workspace.repos.get(checkoutFail.name);
+        const ref = git.serializeGitHubRepoRef(repo.githubRepoRef);
+        if (this._verbose || explicitRequires.includes(ref)) {
+          console.log(`Branch not found: ${ref}`);
+        }
+        const repoDir = path.join(this._workspace.dir, repo.dir);
+        await promisify(rimraf)(repoDir);
+        this._workspace.repos.delete(checkoutFail.name);
+      }
+    }
   }
 
   /**
@@ -172,30 +198,28 @@ export class Runner {
    * test?
    */
   async _determineWorkspaceRepos() {
-    if (this._verbose) {
-      console.log('Determining workspace repos...');
-    }
-
     const excludes: git.GitHubRepoRef[] =
         this._excludes.map(git.parseGitHubRepoRefString);
     const skipTests: git.GitHubRepoRef[] =
         this._skipTests.map(git.parseGitHubRepoRefString);
 
-    // Expand all repos and filter out the excluded repos
-    const expandedRepos: git.GitHubRepoRef[] =
-        (await this._expandWildcardRepoRefs(
-             this._requires.map(git.parseGitHubRepoRefString)))
-            .filter(
-                repo =>
-                    !excludes.some(exclude => git.matchRepoRef(exclude, repo)));
-
     // Expand all tests and filter out the excluded repos
     const expandedTests: git.GitHubRepoRef[] =
         (await this._expandWildcardRepoRefs(
-             this._tests.map(git.parseGitHubRepoRefString)))
+             this._tests.map(git.parseGitHubRepoRefString),
+             'Searching for repos to test...'))
             .filter(
                 test =>
                     !excludes.some(exclude => git.matchRepoRef(exclude, test)));
+
+    // Expand all repos and filter out the excluded repos
+    const expandedRepos: git.GitHubRepoRef[] =
+        (await this._expandWildcardRepoRefs(
+             this._requires.map(git.parseGitHubRepoRefString),
+             'Searching for repos to require...'))
+            .filter(
+                repo =>
+                    !excludes.some(exclude => git.matchRepoRef(exclude, repo)));
 
     // TODO(usergenic): Maybe we should be obtaining the package name here
     // from the repository's bower.json or package.json.
@@ -204,10 +228,24 @@ export class Runner {
     const githubRepoRefs: git.GitHubRepoRef[] =
         expandedRepos.concat(expandedTests);
 
-    const githubRepos: GitHub.Repo[] = await util.promiseAllWithProgress(
-        githubRepoRefs.map(
-            repo => this._github.getRepoInfo(repo.ownerName, repo.repoName)),
-        'Getting Repo details from GitHub...');
+    const githubRepos: GitHub.Repo[] =
+        <GitHub.Repo[]>(
+            await util.promiseAllWithProgress(
+                githubRepoRefs.map(
+                    repo =>
+                        this._github.getRepoInfo(repo.ownerName, repo.repoName)
+                            .catch((error) => {
+                              if (this._verbose) {
+                                console.log(
+                                    `Error retrieving information on ${git
+                                        .serializeGitHubRepoRef(
+                                            repo)} from GitHub.  ${error}`);
+                              }
+                            })),
+                'Getting Repo details from GitHub...'))
+            .filter((repo) => !!repo);
+
+    const reposNotFound = [];
 
     // Build the map of repos by name
     for (const repoRef of githubRepoRefs) {
@@ -231,6 +269,13 @@ export class Runner {
               `  ${git.serializeGitHubRepoRef(repoRef)})`);
         }
       }
+      const githubRepo = githubRepos.find(
+          githubRepo => git.matchRepoRef(
+              git.parseGitHubRepoRefString(githubRepo.full_name), repoRef));
+      if (!githubRepo) {
+        reposNotFound.push(repoRef);
+        continue;
+      }
       this._workspace.repos.set(repoRef.repoName, {
         githubRepoRef: repoRef,
         dir: repoRef.repoName,
@@ -243,25 +288,26 @@ export class Runner {
       });
     }
 
+    for (const repoRef of reposNotFound) {
+      console.log(`Repo not found: ${git.serializeGitHubRepoRef(repoRef)}`);
+    }
     if (this._verbose) {
       const workspaceReposToTest =
           Array.from(this._workspace.repos.entries())
               .filter(repo => repo[1].test)
               .sort((a, b) => a[0] < b[0] ? -1 : (a[0] > b[0] ? 1 : 0));
-      console.log(`Repos to test: ${workspaceReposToTest.length}`);
       for (const repo of workspaceReposToTest) {
-        console.log(`    ${git.serializeGitHubRepoRef(repo[1].githubRepoRef)}`);
+        console.log(
+            `Test repo: ${git.serializeGitHubRepoRef(repo[1].githubRepoRef)}`);
       }
       const workspaceReposToRequire =
           Array.from(this._workspace.repos.entries())
               .filter(repo => !repo[1].test)
               .sort((a, b) => a[0] < b[0] ? -1 : (a[0] > b[0] ? 1 : 0));
       if (workspaceReposToRequire.length > 0) {
-        console.log(`Repos to provide, but not test: ${workspaceReposToRequire
-                        .length}`);
         for (const repo of workspaceReposToRequire) {
-          console.log(
-              `   ${git.serializeGitHubRepoRef(repo[1].githubRepoRef)}`);
+          console.log(`Require repo: ${git.serializeGitHubRepoRef(
+              repo[1].githubRepoRef)}`);
         }
       }
     }
@@ -274,8 +320,9 @@ export class Runner {
    * Polymer where `PolymerElements/iron-*` would be all repos that start with
    * `iron-` owned by `PolymerElements` org.
    */
-  async _expandWildcardRepoRefs(repoRefs: git.GitHubRepoRef[]):
-      Promise<git.GitHubRepoRef[]> {
+  async _expandWildcardRepoRefs(
+      repoRefs: git.GitHubRepoRef[],
+      progressMessage?: string): Promise<git.GitHubRepoRef[]> {
     const ownersToFetchRepoNamesFor: Set<string> = new Set();
     for (const repo of repoRefs) {
       if (repo.repoName.match(/\*/)) {
@@ -286,6 +333,9 @@ export class Runner {
       return Array.from(repoRefs);
     }
 
+    const wildcardSearches =
+        repoRefs.filter((repoRef) => repoRef.repoName.match(/\*/));
+
     // TODO(usergenic): When there are repos and tests with wildcards, we
     // get two progress bars, identically labeled.  We should move the work to
     // fetch the pages of repos into a support method that can be called in
@@ -294,14 +344,13 @@ export class Runner {
         (await util.promiseAllWithProgress(
              Array.from(ownersToFetchRepoNamesFor)
                  .map(owner => this._github.getRepoFullNames(owner)),
-             'Fetching repo names for wildcard search'))
+             progressMessage || 'Fetching repo names for wildcard search...'))
             .reduce((a, b) => a.concat(b))
             .map(git.parseGitHubRepoRefString);
     const expandedRepoRefs: git.GitHubRepoRef[] = [];
     for (const repoRef of repoRefs) {
       if (repoRef.repoName.match(/\*/)) {
-        expandedRepoRefs.push.apply(
-            expandedRepoRefs,
+        const matchingRefs =
             allGitHubRepoRefs
                 .filter(otherRepoRef => git.matchRepoRef(repoRef, otherRepoRef))
                 .map(otherRepoRef => {
@@ -312,7 +361,11 @@ export class Runner {
                     repoName: otherRepoRef.repoName,
                     checkoutRef: repoRef.checkoutRef
                   };
-                }));
+                });
+        if (matchingRefs.length === 0) {
+          console.log(`No matches for: ${git.serializeGitHubRepoRef(repoRef)}`);
+        }
+        expandedRepoRefs.push.apply(expandedRepoRefs, matchingRefs);
       } else {
         expandedRepoRefs.push(repoRef);
       }
@@ -327,9 +380,6 @@ export class Runner {
   async _prepareWorkspaceFolder() {
     const workspaceDir = this._workspace.dir;
 
-    if (this._verbose) {
-      console.log(`Preparing workspace folder ${workspaceDir}...`);
-    }
     // Clean up repos when 'fresh' option is true.
     if (this._fresh) {
       if (this._verbose) {
@@ -346,15 +396,21 @@ export class Runner {
       fs.mkdirSync(workspaceDir);
     }
 
-    // Sometimes a repo will be left in a bad state. Deleting it here
-    // will let it get cleaned up later.
-    for (let dir of fs.readdirSync(workspaceDir)) {
-      const repoDir = path.join(workspaceDir, dir);
-      if (!util.isDirSync(repoDir) || fs.readdirSync(repoDir).length === 1) {
+    // If a folder exists for a workspace repo and it can't be opened with
+    // nodegit, we need to remove it.  This happens when there's not a --fresh
+    // invocation and bower installed the dependency instead of git.
+    for (const repo of this._workspace.repos) {
+      // This only applies to folders which represent github clones.
+      if (!repo[1].githubRepoRef) {
+        continue;
+      }
+      const cloneDir = path.join(this._workspace.dir, repo[1].dir);
+      if (util.existsSync(cloneDir) &&
+          !await git.openRepo(cloneDir).catch((err) => null)) {
         if (this._verbose) {
-          console.log(`Removing clone ${repoDir}...`);
+          console.log(`Removing existing folder: ${cloneDir}...`);
         }
-        await promisify(rimraf)(repoDir);
+        await promisify(rimraf)(cloneDir);
       }
     }
   }
@@ -365,7 +421,8 @@ export class Runner {
    * serializing into the devDependencies key of a generated bower.json file
    * for the workspace dir.
    *
-   * TODO(usergenic): Merge strategy blindly overwrites previous value for key with whatever new value it encounters as we iterate through bower configs
+   * TODO(usergenic): Merge strategy blindly overwrites previous value for key
+   * with whatever new value it encounters as we iterate through bower configs
    * which may not be what we want.  Preserving the
    * highest semver value is *probably* the desired approach
    * instead.
@@ -406,6 +463,9 @@ export class Runner {
           merged.resolutions[name] = bowerConfig.resolutions[name];
         }
       }
+      if (bowerConfig.version) {
+        merged.resolutions[repo.dir] = bowerConfig.version;
+      }
     }
     return merged;
   }
@@ -414,10 +474,9 @@ export class Runner {
    * Creates a .bowerrc that tells bower to use the workspace dir (`.`) as
    * the installation dir (instead of default (`./bower_components`) dir.
    * Creates a bower.json which sets all the workspace repos as dependencies
-   * and
-   * also includes the devDependencies from all workspace repos under test.
+   * and also includes the devDependencies from all workspace repos under test.
    */
-  _installWorkspaceDependencies() {
+  async _installWorkspaceDependencies() {
     const pb =
         util.standardProgressBar('Installing dependencies with bower...', 1);
 
@@ -434,7 +493,8 @@ export class Runner {
     // Make bower config point bower packages of workspace repos to themselves
     // to override whatever any direct or transitive dependencies say.
     for (const repo of Array.from(this._workspace.repos.entries())) {
-      bowerConfig.dependencies[repo[0]] = `./${repo[1].dir}`;
+      const sha = await git.getHeadSha(repo[1].nodegitRepo);
+      bowerConfig.dependencies[repo[0]] = `./${repo[1].dir}#${sha}`;
     }
 
     fs.writeFileSync(
@@ -457,10 +517,6 @@ export class Runner {
    * All repos specified by tests option will be run through wct.
    */
   async _testAllTheThings(): Promise<TestResult[]> {
-    if (this._verbose) {
-      console.log('Test all the things...');
-    }
-
     const testPromises: Promise<TestResult>[] = [];
 
     for (const repo of Array.from(this._workspace.repos.values())
@@ -474,10 +530,15 @@ export class Runner {
         throw new Error(`Error testing ${repo.dir}:\n${err.stack || err}`);
       }
     }
-    return await util.promiseAllWithProgress(testPromises, 'Testing...');
+
+    const testCount = testPromises.length;
+    return await util.promiseAllWithProgress(
+        testPromises, `Testing ${testCount} repo(s)...`);
   }
 
   async _reportTestResults(testResults: TestResult[]) {
+    const divider = '---';
+
     if (this._verbose) {
       console.log('Report test results...');
     }
@@ -486,30 +547,52 @@ export class Runner {
     let failed = 0;
     let skipped = 0;
     let rerun = '#!/bin/bash\n';
-    for (let result of testResults) {
-      const statusString = (() => {
-        switch (result.result) {
-          case TestResultValue.passed:
-            passed++;
-            return 'PASSED';
-          case TestResultValue.failed:
-            rerun += `pushd ${result.workspaceRepo.dir}\n`;
-            rerun += `wct\n`;
-            rerun += `popd\n`;
-            failed++;
-            return 'FAILED';
-          case TestResultValue.skipped:
-            skipped++;
-            return 'SKIPPED';
-        }
-      })();
+
+    // First output the output of tests that failed.
+    for (const result of testResults) {
       if (result.result === TestResultValue.failed) {
-        console.log(
-            'Tests for: ' + result.workspaceRepo.dir + ' status: ' +
-            statusString);
-        console.log(result.output);
+        console.log(divider);
+        console.log(`${git.serializeGitHubRepoRef(
+            result.workspaceRepo.githubRepoRef)} output:`);
+        console.log(result.output.trim());
       }
     }
+
+    console.log(divider);
+
+    const resultBuckets = {PASSED: [], FAILED: [], SKIPPED: []};
+
+    // This builds a rerun script and calculates the size of each bucket.
+    for (const result of testResults) {
+      let bucketName;
+      switch (result.result) {
+        case TestResultValue.passed:
+          passed++;
+          bucketName = 'PASSED';
+          break;
+        case TestResultValue.failed:
+          rerun += `pushd ${result.workspaceRepo.dir}\n`;
+          rerun += `wct\n`;
+          rerun += `popd\n`;
+          failed++;
+          bucketName = 'FAILED';
+          break;
+        case TestResultValue.skipped:
+          skipped++;
+          bucketName = 'SKIPPED';
+          break;
+      }
+      resultBuckets[bucketName].push(result);
+    }
+
+    for (const bucketName of ['PASSED', 'SKIPPED', 'FAILED']) {
+      for (const result of resultBuckets[bucketName]) {
+        console.log(`${bucketName}: ${git.serializeGitHubRepoRef(
+            result.workspaceRepo.githubRepoRef)}`);
+      }
+    }
+
+    console.log();
     const total = passed + failed;
     console.log(`${passed} / ${total} tests passed. ${skipped} skipped.`);
     if (failed > 0) {
@@ -532,10 +615,20 @@ export class Runner {
     await this._prepareWorkspaceFolder();
     // Update in-place and/or clone repositories from GitHub.
     await this._cloneOrUpdateWorkspaceRepos();
+    // If it turns out there are no repos in the workspace to test, we can
+    // stop here.
+    if (!Array.from(this._workspace.repos.values()).some((repo) => repo.test)) {
+      console.log('No repos to test.  Exiting.  (Run tattoo -h for help)');
+      return;
+    }
     // Bower installs all the devDependencies of test repos also gets wct.
-    this._installWorkspaceDependencies();
-    // Run all the tests.
-    const testResults = await this._testAllTheThings();
+    await this._installWorkspaceDependencies();
+    // Run all the tests.  (sort by dir)
+    const testResults = (await this._testAllTheThings()).sort((a, b) => {
+      const ad = git.serializeGitHubRepoRef(a.workspaceRepo.githubRepoRef),
+            bd = git.serializeGitHubRepoRef(b.workspaceRepo.githubRepoRef);
+      return ad < bd ? -1 : ad > bd ? 1 : 0;
+    });
     // Report test results.
     this._reportTestResults(testResults);
   }
