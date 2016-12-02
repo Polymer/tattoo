@@ -399,7 +399,8 @@ export class Runner {
    * serializing into the devDependencies key of a generated bower.json file
    * for the workspace dir.
    *
-   * TODO(usergenic): Merge strategy blindly overwrites previous value for key with whatever new value it encounters as we iterate through bower configs
+   * TODO(usergenic): Merge strategy blindly overwrites previous value for key
+   * with whatever new value it encounters as we iterate through bower configs
    * which may not be what we want.  Preserving the
    * highest semver value is *probably* the desired approach
    * instead.
@@ -451,8 +452,7 @@ export class Runner {
    * Creates a .bowerrc that tells bower to use the workspace dir (`.`) as
    * the installation dir (instead of default (`./bower_components`) dir.
    * Creates a bower.json which sets all the workspace repos as dependencies
-   * and
-   * also includes the devDependencies from all workspace repos under test.
+   * and also includes the devDependencies from all workspace repos under test.
    */
   async _installWorkspaceDependencies() {
     const pb =
@@ -541,48 +541,35 @@ export class Runner {
     }
 
     console.log(divider);
-    const resultBuckets = [[], [], []];
-    // Next output a list of all test dirs and statuses
+
+    const resultBuckets = {PASSED: [], FAILED: [], SKIPPED: []};
+
+    // This builds a rerun script and calculates the size of each bucket.
     for (const result of testResults) {
+      let bucketName;
       switch (result.result) {
         case TestResultValue.passed:
           passed++;
+          bucketName = 'PASSED';
           break;
         case TestResultValue.failed:
           rerun += `pushd ${result.workspaceRepo.dir}\n`;
           rerun += `wct\n`;
           rerun += `popd\n`;
           failed++;
+          bucketName = 'FAILED';
           break;
         case TestResultValue.skipped:
           skipped++;
+          bucketName = 'SKIPPED';
           break;
       }
-      const statusString = (() => {
-        switch (result.result) {
-          case TestResultValue.passed:
-            passed++;
-            return 'PASSED';
-          case TestResultValue.failed:
-            rerun += `pushd ${result.workspaceRepo.dir}\n`;
-            rerun += `wct\n`;
-            rerun += `popd\n`;
-            failed++;
-            return 'FAILED';
-          case TestResultValue.skipped:
-            skipped++;
-            return 'SKIPPED';
-        }
-      })();
-      resultBuckets[result.result].push(result);
+      resultBuckets[bucketName].push(result);
     }
 
-    for (const bucket of resultBuckets) {
-      for (const result of bucket) {
-        const statusString = result.result === TestResultValue.passed ?
-            'PASSED' :
-            result.result === TestResultValue.skipped ? 'SKIPPED' : 'FAILED';
-        console.log(`${statusString}: ${git.serializeGitHubRepoRef(
+    for (const bucketName of ['PASSED', 'SKIPPED', 'FAILED']) {
+      for (const result of resultBuckets[bucketName]) {
+        console.log(`${bucketName}: ${git.serializeGitHubRepoRef(
             result.workspaceRepo.githubRepoRef)}`);
       }
     }
