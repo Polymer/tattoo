@@ -137,12 +137,9 @@ export class Runner {
    * refs.
    */
   async _cloneOrUpdateWorkspaceRepos() {
-    if (this._verbose) {
-      console.log('Cloning/updating workspace repos...');
-    }
-
     const promises: Promise<nodegit.Repository>[] = [];
     const checkoutFails: {name: string, error: Error}[] = [];
+    const explicitRequires: string[] = this._tests.concat(this._requires);
 
     // Clone git repos.
     for (const name of this._workspace.repos.keys()) {
@@ -180,8 +177,8 @@ export class Runner {
       for (const checkoutFail of checkoutFails) {
         const repo = this._workspace.repos.get(checkoutFail.name);
         const ref = git.serializeGitHubRepoRef(repo.githubRepoRef);
-        if (this._verbose) {
-          console.log(`Skipping ${ref}: ${checkoutFail.error}`);
+        if (this._verbose || explicitRequires.includes(ref)) {
+          console.log(`Branch not found: ${ref}`);
         }
         const repoDir = path.join(this._workspace.dir, repo.dir);
         await promisify(rimraf)(repoDir);
@@ -201,30 +198,28 @@ export class Runner {
    * test?
    */
   async _determineWorkspaceRepos() {
-    if (this._verbose) {
-      console.log('Determining workspace repos...');
-    }
-
     const excludes: git.GitHubRepoRef[] =
         this._excludes.map(git.parseGitHubRepoRefString);
     const skipTests: git.GitHubRepoRef[] =
         this._skipTests.map(git.parseGitHubRepoRefString);
 
-    // Expand all repos and filter out the excluded repos
-    const expandedRepos: git.GitHubRepoRef[] =
-        (await this._expandWildcardRepoRefs(
-             this._requires.map(git.parseGitHubRepoRefString)))
-            .filter(
-                repo =>
-                    !excludes.some(exclude => git.matchRepoRef(exclude, repo)));
-
     // Expand all tests and filter out the excluded repos
     const expandedTests: git.GitHubRepoRef[] =
         (await this._expandWildcardRepoRefs(
-             this._tests.map(git.parseGitHubRepoRefString)))
+             this._tests.map(git.parseGitHubRepoRefString),
+             'Searching for repos to test...'))
             .filter(
                 test =>
                     !excludes.some(exclude => git.matchRepoRef(exclude, test)));
+
+    // Expand all repos and filter out the excluded repos
+    const expandedRepos: git.GitHubRepoRef[] =
+        (await this._expandWildcardRepoRefs(
+             this._requires.map(git.parseGitHubRepoRefString),
+             'Searching for repos to require...'))
+            .filter(
+                repo =>
+                    !excludes.some(exclude => git.matchRepoRef(exclude, repo)));
 
     // TODO(usergenic): Maybe we should be obtaining the package name here
     // from the repository's bower.json or package.json.
@@ -233,10 +228,24 @@ export class Runner {
     const githubRepoRefs: git.GitHubRepoRef[] =
         expandedRepos.concat(expandedTests);
 
-    const githubRepos: GitHub.Repo[] = await util.promiseAllWithProgress(
-        githubRepoRefs.map(
-            repo => this._github.getRepoInfo(repo.ownerName, repo.repoName)),
-        'Getting Repo details from GitHub...');
+    const githubRepos: GitHub.Repo[] =
+        <GitHub.Repo[]>(
+            await util.promiseAllWithProgress(
+                githubRepoRefs.map(
+                    repo =>
+                        this._github.getRepoInfo(repo.ownerName, repo.repoName)
+                            .catch((error) => {
+                              if (this._verbose) {
+                                console.log(
+                                    `Error retrieving information on ${git
+                                        .serializeGitHubRepoRef(
+                                            repo)} from GitHub.  ${error}`);
+                              }
+                            })),
+                'Getting Repo details from GitHub...'))
+            .filter((repo) => !!repo);
+
+    const reposNotFound = [];
 
     // Build the map of repos by name
     for (const repoRef of githubRepoRefs) {
@@ -260,6 +269,13 @@ export class Runner {
               `  ${git.serializeGitHubRepoRef(repoRef)})`);
         }
       }
+      const githubRepo = githubRepos.find(
+          githubRepo => git.matchRepoRef(
+              git.parseGitHubRepoRefString(githubRepo.full_name), repoRef));
+      if (!githubRepo) {
+        reposNotFound.push(repoRef);
+        continue;
+      }
       this._workspace.repos.set(repoRef.repoName, {
         githubRepoRef: repoRef,
         dir: repoRef.repoName,
@@ -272,25 +288,26 @@ export class Runner {
       });
     }
 
+    for (const repoRef of reposNotFound) {
+      console.log(`Repo not found: ${git.serializeGitHubRepoRef(repoRef)}`);
+    }
     if (this._verbose) {
       const workspaceReposToTest =
           Array.from(this._workspace.repos.entries())
               .filter(repo => repo[1].test)
               .sort((a, b) => a[0] < b[0] ? -1 : (a[0] > b[0] ? 1 : 0));
-      console.log(`Repos to test: ${workspaceReposToTest.length}`);
       for (const repo of workspaceReposToTest) {
-        console.log(`    ${git.serializeGitHubRepoRef(repo[1].githubRepoRef)}`);
+        console.log(
+            `Test repo: ${git.serializeGitHubRepoRef(repo[1].githubRepoRef)}`);
       }
       const workspaceReposToRequire =
           Array.from(this._workspace.repos.entries())
               .filter(repo => !repo[1].test)
               .sort((a, b) => a[0] < b[0] ? -1 : (a[0] > b[0] ? 1 : 0));
       if (workspaceReposToRequire.length > 0) {
-        console.log(`Repos to provide, but not test: ${workspaceReposToRequire
-                        .length}`);
         for (const repo of workspaceReposToRequire) {
-          console.log(
-              `   ${git.serializeGitHubRepoRef(repo[1].githubRepoRef)}`);
+          console.log(`Require repo: ${git.serializeGitHubRepoRef(
+              repo[1].githubRepoRef)}`);
         }
       }
     }
@@ -303,8 +320,9 @@ export class Runner {
    * Polymer where `PolymerElements/iron-*` would be all repos that start with
    * `iron-` owned by `PolymerElements` org.
    */
-  async _expandWildcardRepoRefs(repoRefs: git.GitHubRepoRef[]):
-      Promise<git.GitHubRepoRef[]> {
+  async _expandWildcardRepoRefs(
+      repoRefs: git.GitHubRepoRef[],
+      progressMessage?: string): Promise<git.GitHubRepoRef[]> {
     const ownersToFetchRepoNamesFor: Set<string> = new Set();
     for (const repo of repoRefs) {
       if (repo.repoName.match(/\*/)) {
@@ -315,6 +333,9 @@ export class Runner {
       return Array.from(repoRefs);
     }
 
+    const wildcardSearches =
+        repoRefs.filter((repoRef) => repoRef.repoName.match(/\*/));
+
     // TODO(usergenic): When there are repos and tests with wildcards, we
     // get two progress bars, identically labeled.  We should move the work to
     // fetch the pages of repos into a support method that can be called in
@@ -323,14 +344,13 @@ export class Runner {
         (await util.promiseAllWithProgress(
              Array.from(ownersToFetchRepoNamesFor)
                  .map(owner => this._github.getRepoFullNames(owner)),
-             'Fetching repo names for wildcard search'))
+             progressMessage || 'Fetching repo names for wildcard search...'))
             .reduce((a, b) => a.concat(b))
             .map(git.parseGitHubRepoRefString);
     const expandedRepoRefs: git.GitHubRepoRef[] = [];
     for (const repoRef of repoRefs) {
       if (repoRef.repoName.match(/\*/)) {
-        expandedRepoRefs.push.apply(
-            expandedRepoRefs,
+        const matchingRefs =
             allGitHubRepoRefs
                 .filter(otherRepoRef => git.matchRepoRef(repoRef, otherRepoRef))
                 .map(otherRepoRef => {
@@ -341,7 +361,11 @@ export class Runner {
                     repoName: otherRepoRef.repoName,
                     checkoutRef: repoRef.checkoutRef
                   };
-                }));
+                });
+        if (matchingRefs.length === 0) {
+          console.log(`No matches for: ${git.serializeGitHubRepoRef(repoRef)}`);
+        }
+        expandedRepoRefs.push.apply(expandedRepoRefs, matchingRefs);
       } else {
         expandedRepoRefs.push(repoRef);
       }
@@ -356,9 +380,6 @@ export class Runner {
   async _prepareWorkspaceFolder() {
     const workspaceDir = this._workspace.dir;
 
-    if (this._verbose) {
-      console.log(`Preparing workspace folder ${workspaceDir}...`);
-    }
     // Clean up repos when 'fresh' option is true.
     if (this._fresh) {
       if (this._verbose) {
@@ -384,9 +405,10 @@ export class Runner {
         continue;
       }
       const cloneDir = path.join(this._workspace.dir, repo[1].dir);
-      if (!await git.openRepo(cloneDir).catch((err) => null)) {
+      if (util.existsSync(cloneDir) &&
+          !await git.openRepo(cloneDir).catch((err) => null)) {
         if (this._verbose) {
-          console.log(`Removing folder ${cloneDir}...`);
+          console.log(`Removing existing folder: ${cloneDir}...`);
         }
         await promisify(rimraf)(cloneDir);
       }
@@ -495,10 +517,6 @@ export class Runner {
    * All repos specified by tests option will be run through wct.
    */
   async _testAllTheThings(): Promise<TestResult[]> {
-    if (this._verbose) {
-      console.log('Test all the things...');
-    }
-
     const testPromises: Promise<TestResult>[] = [];
 
     for (const repo of Array.from(this._workspace.repos.values())
@@ -597,6 +615,12 @@ export class Runner {
     await this._prepareWorkspaceFolder();
     // Update in-place and/or clone repositories from GitHub.
     await this._cloneOrUpdateWorkspaceRepos();
+    // If it turns out there are no repos in the workspace to test, we can
+    // stop here.
+    if (!Array.from(this._workspace.repos.values()).some((repo) => repo.test)) {
+      console.log('No repos to test.  Exiting.  (Run tattoo -h for help)');
+      return;
+    }
     // Bower installs all the devDependencies of test repos also gets wct.
     await this._installWorkspaceDependencies();
     // Run all the tests.  (sort by dir)
