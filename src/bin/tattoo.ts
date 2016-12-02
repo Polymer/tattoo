@@ -37,7 +37,6 @@ async function main() {
     if (runnerOptions.wctFlags.length === 0) {
       runnerOptions.wctFlags.push('--local chrome');
     }
-    console.log(cliOptions);
     const runner: Runner = new Runner(runnerOptions);
     await runner.run();
   } catch (err) {
