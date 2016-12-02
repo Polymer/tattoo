@@ -1,6 +1,6 @@
 {
   "name": "tattoo",
-  "version": "2.0.0-alpha.1",
+  "version": "2.0.0-alpha.2",
   "description": "Test all the things over and over",
   "main": "lib/runner.js",
   "bin": {
