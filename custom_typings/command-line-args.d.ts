@@ -1,6 +1,7 @@
 declare module 'command-line-args' {
-  function commandLineArgs(args: commandLineArgs.ArgDescriptor[]):
-      commandLineArgs.CLI;
+  function commandLineArgs(
+      args: commandLineArgs.ArgDescriptor[],
+      argv?: string[]): commandLineArgs.CLI;
 
   namespace commandLineArgs {
     interface ArgDescriptor {

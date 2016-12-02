@@ -27,15 +27,17 @@ async function main() {
       excludes: cliOptions['exclude'],
       githubToken: cliOptions['github-token'],
       fresh: cliOptions['fresh'],
-      // TODO(usergenic): Not Yet Implemented
-      // latestRelease: cliOptions['latest-release'],
       requires: cliOptions['require'],
       skipTests: cliOptions['skip-test'],
       tests: cliOptions['test'],
       verbose: cliOptions['verbose'],
-      wctFlags: cliOptions['wct-flags'],
+      wctFlags: cliOptions['wct-flags'] || [],
       workspaceDir: cliOptions['workspace-dir']
     };
+    if (runnerOptions.wctFlags.length === 0) {
+      runnerOptions.wctFlags.push('--local chrome');
+    }
+    console.log(cliOptions);
     const runner: Runner = new Runner(runnerOptions);
     await runner.run();
   } catch (err) {
