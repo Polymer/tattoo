@@ -541,8 +541,23 @@ export class Runner {
     }
 
     console.log(divider);
+    const resultBuckets = [[], [], []];
     // Next output a list of all test dirs and statuses
     for (const result of testResults) {
+      switch (result.result) {
+        case TestResultValue.passed:
+          passed++;
+          break;
+        case TestResultValue.failed:
+          rerun += `pushd ${result.workspaceRepo.dir}\n`;
+          rerun += `wct\n`;
+          rerun += `popd\n`;
+          failed++;
+          break;
+        case TestResultValue.skipped:
+          skipped++;
+          break;
+      }
       const statusString = (() => {
         switch (result.result) {
           case TestResultValue.passed:
@@ -559,8 +574,17 @@ export class Runner {
             return 'SKIPPED';
         }
       })();
-      console.log(`${statusString}: ${git.serializeGitHubRepoRef(
-          result.workspaceRepo.githubRepoRef)}`);
+      resultBuckets[result.result].push(result);
+    }
+
+    for (const bucket of resultBuckets) {
+      for (const result of bucket) {
+        const statusString = result.result === TestResultValue.passed ?
+            'PASSED' :
+            result.result === TestResultValue.skipped ? 'SKIPPED' : 'FAILED';
+        console.log(`${statusString}: ${git.serializeGitHubRepoRef(
+            result.workspaceRepo.githubRepoRef)}`);
+      }
     }
 
     console.log();

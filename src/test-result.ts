@@ -22,6 +22,6 @@ export interface TestResult {
 
 export enum TestResultValue {
   passed,
-  failed,
-  skipped
+  skipped,
+  failed
 }
