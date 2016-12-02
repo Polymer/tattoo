@@ -23,6 +23,7 @@ import * as GitHub from 'github';
 import * as nodegit from 'nodegit';
 import * as path from 'path';
 import * as promisify from 'promisify-node';
+import * as rimraf from 'rimraf';
 
 // import {checkoutLatestRelease} from './latest-release';
 import * as util from './util';
@@ -95,24 +96,18 @@ export class GitHubConnection {
    */
   async cloneOrFetch(githubRepo: GitHub.Repo, cloneDir: string):
       Promise<nodegit.Repository> {
-    let nodegitRepo: nodegit.Repository;
     if (util.existsSync(cloneDir)) {
-      let updatedRepo: nodegit.Repository;
-      nodegitRepo =
-          await nodegit.Repository.open(cloneDir)
-              .then((repo) => {
-                updatedRepo = repo;
-                return this._cloneRateLimiter.schedule(
-                    () => updatedRepo.fetchAll(this._cloneOptions.fetchOpts));
-              })
-              .then(() => updatedRepo);
-    } else {
-      nodegitRepo = await this._cloneRateLimiter.schedule(() => {
-        return nodegit.Clone.clone(
-            githubRepo.clone_url, cloneDir, this._cloneOptions);
-      });
+      const openRepo = await nodegit.Repository.open(cloneDir);
+      if (openRepo) {
+        return this._cloneRateLimiter
+            .schedule(() => openRepo.fetchAll(this._cloneOptions.fetchOpts))
+            .then(() => openRepo);
+      }
     }
-    return nodegitRepo;
+    return await this._cloneRateLimiter.schedule(() => {
+      return nodegit.Clone.clone(
+          githubRepo.clone_url, cloneDir, this._cloneOptions);
+    });
   }
 
   /**
@@ -187,22 +182,21 @@ export class GitHubConnection {
  *
  * @returns the nodegit Branch object for the new branch.
  */
-export async function checkout(
+export async function checkoutOriginRef(
     nodegitRepo: nodegit.Repository,
-    checkoutRef?: string): Promise<nodegit.Repository> {
-  const cwd = nodegitRepo.workdir();
-  const ref = typeof checkoutRef === 'string' ? checkoutRef : 'master';
-  return new Promise<nodegit.Repository>(
-      (resolve, reject) => (child_process.exec(
-          `git checkout ${ref}`, {cwd: cwd}, (error, stdout, stderr) => {
-            if (error) {
-              console.log(ref);
-              console.log(`Error checking out ${ref} in : ${cwd}`);
-            }
-            resolve(nodegitRepo);
-          })));
+    checkoutRef: string): Promise<nodegit.Repository> {
+  return nodegitRepo.getBranch('refs/remotes/origin/' + checkoutRef)
+      .then(function(reference) {
+        // checkout branch
+        return nodegitRepo.checkoutRef(reference);
+      })
+      .then(() => nodegitRepo);
 }
 
+export async function getHeadSha(repo: nodegit.Repository): Promise<string> {
+  return repo.getHeadCommit().then(
+      (commit) => commit['sha'] ? commit['sha']() : '');
+}
 /**
  * @returns a string representation of a RepoRef of the form:
  *     "name:org/repo#ref"
@@ -244,6 +238,13 @@ export function matchRepoRef(
     matcherRef: GitHubRepoRef, targetRef: GitHubRepoRef): boolean {
   return util.wildcardRegExp(matcherRef.ownerName).test(targetRef.ownerName) &&
       util.wildcardRegExp(matcherRef.repoName).test(targetRef.repoName);
+}
+
+/**
+ * Convenience wrapper to nodegit's repository open.
+ */
+export async function openRepo(cloneDir: string): Promise<nodegit.Repository> {
+  return nodegit.Repository.open(cloneDir);
 }
 
 /**

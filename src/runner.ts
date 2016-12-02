@@ -142,6 +142,7 @@ export class Runner {
     }
 
     const promises: Promise<nodegit.Repository>[] = [];
+    const checkoutFails: {name: string, error: Error}[] = [];
 
     // Clone git repos.
     for (const name of this._workspace.repos.keys()) {
@@ -150,15 +151,43 @@ export class Runner {
           this._github
               .cloneOrFetch(
                   repo.githubRepo, path.join(this._workspace.dir, repo.dir))
-              .then(
-                  (nodegitRepo) => git.checkout(
-                      nodegitRepo, repo.githubRepoRef.checkoutRef)));
+              .then((nodegitRepo) => {
+                repo.nodegitRepo = nodegitRepo;
+                // If we don't have a specific checkoutRef, lets leave the repo
+                // HEAD pointed to where it's at.
+                if (repo.githubRepoRef.checkoutRef) {
+                  return git.checkoutOriginRef(
+                      nodegitRepo, repo.githubRepoRef.checkoutRef);
+                }
+              })
+              // TODO(usergenic): Check for the specific error case, but
+              // for now we treat these as "the ref doesn't exist".  It
+              // is expected that an error could exist if the checkout
+              // fails because of local repo changes preventing it as
+              // well.
+              .catch((err) => {
+                checkoutFails.push({name: name, error: err});
+              }));
     }
 
     // TODO(usergenic): We probably want to track the set of repos completed so
     // we can identify the problem repos in case error messages come back
     // without enough context for users to debug.
     await util.promiseAllWithProgress(promises, 'Cloning/Updating repos...');
+
+
+    if (checkoutFails.length > 0) {
+      for (const checkoutFail of checkoutFails) {
+        const repo = this._workspace.repos.get(checkoutFail.name);
+        const ref = git.serializeGitHubRepoRef(repo.githubRepoRef);
+        if (this._verbose) {
+          console.log(`Skipping ${ref}: ${checkoutFail.error}`);
+        }
+        const repoDir = path.join(this._workspace.dir, repo.dir);
+        await promisify(rimraf)(repoDir);
+        this._workspace.repos.delete(checkoutFail.name);
+      }
+    }
   }
 
   /**
@@ -346,15 +375,20 @@ export class Runner {
       fs.mkdirSync(workspaceDir);
     }
 
-    // Sometimes a repo will be left in a bad state. Deleting it here
-    // will let it get cleaned up later.
-    for (let dir of fs.readdirSync(workspaceDir)) {
-      const repoDir = path.join(workspaceDir, dir);
-      if (!util.isDirSync(repoDir) || fs.readdirSync(repoDir).length === 1) {
+    // If a folder exists for a workspace repo and it can't be opened with
+    // nodegit, we need to remove it.  This happens when there's not a --fresh
+    // invocation and bower installed the dependency instead of git.
+    for (const repo of this._workspace.repos) {
+      // This only applies to folders which represent github clones.
+      if (!repo[1].githubRepoRef) {
+        continue;
+      }
+      const cloneDir = path.join(this._workspace.dir, repo[1].dir);
+      if (!await git.openRepo(cloneDir).catch((err) => null)) {
         if (this._verbose) {
-          console.log(`Removing clone ${repoDir}...`);
+          console.log(`Removing folder ${cloneDir}...`);
         }
-        await promisify(rimraf)(repoDir);
+        await promisify(rimraf)(cloneDir);
       }
     }
   }
@@ -406,6 +440,9 @@ export class Runner {
           merged.resolutions[name] = bowerConfig.resolutions[name];
         }
       }
+      if (bowerConfig.version) {
+        merged.resolutions[repo.dir] = bowerConfig.version;
+      }
     }
     return merged;
   }
@@ -417,7 +454,7 @@ export class Runner {
    * and
    * also includes the devDependencies from all workspace repos under test.
    */
-  _installWorkspaceDependencies() {
+  async _installWorkspaceDependencies() {
     const pb =
         util.standardProgressBar('Installing dependencies with bower...', 1);
 
@@ -434,7 +471,8 @@ export class Runner {
     // Make bower config point bower packages of workspace repos to themselves
     // to override whatever any direct or transitive dependencies say.
     for (const repo of Array.from(this._workspace.repos.entries())) {
-      bowerConfig.dependencies[repo[0]] = `./${repo[1].dir}`;
+      const sha = await git.getHeadSha(repo[1].nodegitRepo);
+      bowerConfig.dependencies[repo[0]] = `./${repo[1].dir}#${sha}`;
     }
 
     fs.writeFileSync(
@@ -474,10 +512,15 @@ export class Runner {
         throw new Error(`Error testing ${repo.dir}:\n${err.stack || err}`);
       }
     }
-    return await util.promiseAllWithProgress(testPromises, 'Testing...');
+
+    const testCount = testPromises.length;
+    return await util.promiseAllWithProgress(
+        testPromises, `Testing ${testCount} repo(s)...`);
   }
 
   async _reportTestResults(testResults: TestResult[]) {
+    const divider = '---';
+
     if (this._verbose) {
       console.log('Report test results...');
     }
@@ -486,7 +529,20 @@ export class Runner {
     let failed = 0;
     let skipped = 0;
     let rerun = '#!/bin/bash\n';
-    for (let result of testResults) {
+
+    // First output the output of tests that failed.
+    for (const result of testResults) {
+      if (result.result === TestResultValue.failed) {
+        console.log(divider);
+        console.log(`${git.serializeGitHubRepoRef(
+            result.workspaceRepo.githubRepoRef)} output:`);
+        console.log(result.output.trim());
+      }
+    }
+
+    console.log(divider);
+    // Next output a list of all test dirs and statuses
+    for (const result of testResults) {
       const statusString = (() => {
         switch (result.result) {
           case TestResultValue.passed:
@@ -503,13 +559,11 @@ export class Runner {
             return 'SKIPPED';
         }
       })();
-      if (result.result === TestResultValue.failed) {
-        console.log(
-            'Tests for: ' + result.workspaceRepo.dir + ' status: ' +
-            statusString);
-        console.log(result.output);
-      }
+      console.log(`${statusString}: ${git.serializeGitHubRepoRef(
+          result.workspaceRepo.githubRepoRef)}`);
     }
+
+    console.log();
     const total = passed + failed;
     console.log(`${passed} / ${total} tests passed. ${skipped} skipped.`);
     if (failed > 0) {
@@ -533,9 +587,13 @@ export class Runner {
     // Update in-place and/or clone repositories from GitHub.
     await this._cloneOrUpdateWorkspaceRepos();
     // Bower installs all the devDependencies of test repos also gets wct.
-    this._installWorkspaceDependencies();
-    // Run all the tests.
-    const testResults = await this._testAllTheThings();
+    await this._installWorkspaceDependencies();
+    // Run all the tests.  (sort by dir)
+    const testResults = (await this._testAllTheThings()).sort((a, b) => {
+      const ad = git.serializeGitHubRepoRef(a.workspaceRepo.githubRepoRef),
+            bd = git.serializeGitHubRepoRef(b.workspaceRepo.githubRepoRef);
+      return ad < bd ? -1 : ad > bd ? 1 : 0;
+    });
     // Report test results.
     this._reportTestResults(testResults);
   }
