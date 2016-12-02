@@ -142,13 +142,28 @@ export class GitHubConnection {
 
     // Try to get the repo names assuming owner is an org.
     const getFromOrg = promisify(this._github.repos.getFromOrg);
+    const getFromUser = promisify(this._github.repos.getFromUser);
     let pageSize = 50;
     let page = 0;
     let repos: GitHub.Repo[] = [];
     const ownerRepoMap = new Map<string, GitHub.Repo>();
     this._cache.repos.set(owner.toLowerCase(), ownerRepoMap);
+    let isOrg = true;
     do {
-      repos = await getFromOrg({org: owner, per_page: pageSize, page: page});
+      if (isOrg) {
+        await getFromOrg({org: owner, per_page: pageSize, page: page})
+            .then((results) => {
+              repos = results;
+            })
+            .catch((error) => {
+              // Maybe owner is not an org.
+              isOrg = false;
+            });
+      }
+      if (!isOrg) {
+        repos = await getFromUser({user: owner, per_page: pageSize, page: page})
+                    .catch((error) => []);
+      }
       for (const repo of repos) {
         names.push(repo.full_name);
         ownerRepoMap.set(repo.name.toLowerCase(), repo);
