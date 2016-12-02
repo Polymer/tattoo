@@ -5,7 +5,12 @@ Test all the things over and over.
 
 ```
 npm install -g tattoo
+npm install -g web-component-tester
 ```
+
+Note: Be sure you have web-component-tester installed and up-to-date.  Tattoo
+doesn't currently play nicely with outdated versions of wct and may generate
+cryptic output or stack-traces.
 
 ### Usage
 
