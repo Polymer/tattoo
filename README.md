@@ -183,6 +183,8 @@ Options
                                configuration values. Command-line options flags
                                supercede values in file where they differ. If
                                file is missing, Tattoo will ignore.
+  -C, --color string           Set to "off" if you do not want color in your
+                               output. Defaults to "on".
   -g, --github-token string    Provide github token via command-line flag
                                instead of "github-token" file.
   -v, --verbose                Set to print output from failed tests.

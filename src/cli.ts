@@ -17,7 +17,7 @@ import * as fs from 'fs';
 import {Runner, RunnerOptions} from './runner';
 
 export interface CliOptions {
-  'color'?: boolean;
+  'color'?: string;
   'config-file'?: string;
   'exclude'?: string[];
   'github-token'?: string;
@@ -32,7 +32,7 @@ export interface CliOptions {
 }
 
 export interface ConfigFileOptions {
-  'color'?: boolean;
+  'color'?: string;
   'exclude'?: string[];
   'github-token'?: string;
   'fresh'?: boolean;
@@ -134,11 +134,11 @@ export const cliOptionDefinitions = [
   {
     name: 'color',
     alias: 'C',
-    type: Boolean,
-    defaultValue: true,
+    type: String,
+    defaultValue: 'on',
     description:
-        'Set to false if you do not want color in your output.  Defaults ' +
-        'to true.'
+        'Set to "off" if you do not want color in your output.  Defaults ' +
+        'to "on".'
   },
   {
     name: 'github-token',
@@ -251,6 +251,7 @@ export function mergeConfigFileOptions(
     }
   }
 
+  mergeBasic('color', 'string');
   mergeArray('exclude');
   mergeBasic('github-token', 'string');
   mergeBasic('fresh', 'boolean');

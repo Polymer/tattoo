@@ -41,7 +41,7 @@ import {Workspace, WorkspaceRepo} from './workspace';
  */
 export interface RunnerOptions {
   // Use color in the output?
-  color?: boolean;
+  color?: string;
 
   // An array of repo expressions for filtering out repos to load.
   excludes?: string[];
@@ -105,7 +105,7 @@ export class Runner {
   // TODO(usergenic): This constructor is getting long.  Break up some of
   // these stanzas into supporting methods.
   constructor(options: RunnerOptions) {
-    this._color = !!options.color;
+    this._color = options.color === 'on';
     this._excludes = options.excludes || [];
     this._fresh = !!options.fresh;
     // TODO(usergenic): Pass an option to gitUtil.connectToGitHub for the
@@ -595,14 +595,18 @@ export class Runner {
 
     for (const bucketName of ['PASSED', 'SKIPPED', 'FAILED']) {
       for (const result of resultBuckets[bucketName]) {
-        const colorFunction =
-            colors[{'PASSED': 'green',
-                    'SKIPPED': 'silver',
-                    'FAILED': 'red'}[bucketName]] ||
-            ((s) => s);
-
-        console.log(colorFunction(`${bucketName}: ${git.serializeGitHubRepoRef(
-            result.workspaceRepo.githubRepoRef)}`));
+        let output = `${bucketName}: ${git.serializeGitHubRepoRef(
+            result.workspaceRepo.githubRepoRef)}`;
+        if (this._color) {
+          const colorFunction =
+              colors[{'PASSED': 'green',
+                      'SKIPPED': 'silver',
+                      'FAILED': 'red'}[bucketName]];
+          if (colorFunction) {
+            output = colorFunction(output);
+          }
+        }
+        console.log(output);
       }
     }
 
