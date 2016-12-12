@@ -17,6 +17,7 @@ import * as fs from 'fs';
 import {Runner, RunnerOptions} from './runner';
 
 export interface CliOptions {
+  'color'?: boolean;
   'config-file'?: string;
   'exclude'?: string[];
   'github-token'?: string;
@@ -31,6 +32,7 @@ export interface CliOptions {
 }
 
 export interface ConfigFileOptions {
+  'color'?: boolean;
   'exclude'?: string[];
   'github-token'?: string;
   'fresh'?: boolean;
@@ -128,6 +130,15 @@ export const cliOptionDefinitions = [
         'Specify path to a json file which contains base configuration' +
         ' values.  Command-line options flags supercede values in file ' +
         ' where they differ.  If file is missing, Tattoo will ignore.'
+  },
+  {
+    name: 'color',
+    alias: 'C',
+    type: Boolean,
+    defaultValue: true,
+    description:
+        'Set to false if you do not want color in your output.  Defaults ' +
+        'to true.'
   },
   {
     name: 'github-token',
