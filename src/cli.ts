@@ -167,7 +167,7 @@ export const cliOptionDefinitions = [
     type: String,
     description:
         'Override the default path "tattoo_workspace" where the repositories' +
-        ' will be cloned and web-components-tester will run.'
+        ' will be cloned and web-component-tester will run.'
   },
   {
     name: 'help',
@@ -282,7 +282,7 @@ export function getCliHelp(): string {
     {
       header: 'tattoo (test all the things over & over)',
       content:
-          `Runs the web-components-tester on custom element git repositories.
+          `Runs the web-component-tester on custom element git repositories.
 
   Run test for a specific GitHub repository:
     $ tattoo PolymerElements/paper-button

@@ -42,7 +42,8 @@
     "promisify-node": "^0.3.0",
     "resolve": "^1.1.7",
     "rimraf": "^2.4.3",
-    "semver": "^5.1.0"
+    "semver": "^5.1.0",
+    "web-component-tester": "^5.0.0"
   },
   "devDependencies": {
     "@types/chai": "^3.4.29",
