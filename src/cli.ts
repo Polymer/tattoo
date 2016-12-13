@@ -191,21 +191,19 @@ export const cliOptionDefinitions = [
  * in the github-token file in working folder.  If that doesn't exist either,
  * we message to the user that we need a token and exit the process.
  */
-export function ensureGitHubToken(options: CliOptions) {
+export function loadGitHubToken(options: CliOptions) {
   // TODO(usergenic): Maybe support GITHUB_TOKEN as an environment variable,
   // since this would be a better solution for Travis deployments etc.
+  const githubFilename = 'github-token';
   if (!options['github-token']) {
+    if (!fs.existsSync(githubFilename)) {
+      console.error(`Missing file "${githubFilename}"`);
+      return;
+    }
     try {
-      options['github-token'] = fs.readFileSync('github-token', 'utf8').trim();
+      options['github-token'] = fs.readFileSync(githubFilename, 'utf8').trim();
     } catch (e) {
-      const err = new Error(`
-You need to create a github token and place it in a file named 'github-token'.
-The token only needs the 'public repos' permission.
-
-Generate a token here:   https://github.com/settings/tokens
-`);
-      err.stack = undefined;
-      throw err;
+      console.error(`Unable to load file ${githubFilename}: ${e.message}`);
     }
   }
 }
