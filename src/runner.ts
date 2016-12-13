@@ -559,9 +559,11 @@ export class Runner {
     // First output the output of tests that failed.
     for (const result of testResults) {
       if (result.result === TestResultValue.failed) {
+        const colorFunction = this._color ? colors.red.inverse : (s) => s;
         console.log(divider);
-        console.log(`${git.serializeGitHubRepoRef(
-            result.workspaceRepo.githubRepoRef)} output:`);
+        console.log(colorFunction(`${git.serializeGitHubRepoRef(
+            result.workspaceRepo.githubRepoRef)} output:`));
+        console.log();
         console.log(result.output.trim());
       }
     }
@@ -598,10 +600,11 @@ export class Runner {
         let output = `${bucketName}: ${git.serializeGitHubRepoRef(
             result.workspaceRepo.githubRepoRef)}`;
         if (this._color) {
-          const colorFunction =
-              colors[{'PASSED': 'green',
-                      'SKIPPED': 'silver',
-                      'FAILED': 'red'}[bucketName]];
+          const colorFunction = {
+              'PASSED': colors.green,
+              'SKIPPED': colors.yellow,
+              'FAILED': colors.inverse.red
+          }[bucketName];
           if (colorFunction) {
             output = colorFunction(output);
           }
