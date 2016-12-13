@@ -103,8 +103,8 @@ export const cliOptionDefinitions = [
     defaultValue: [],
     multiple: true,
     description:
-        'Explicit repos to load. Specifying explicit repos will disable' +
-        ' running on the default set of repos for the user.'
+        'Explicit repos to load.  Specifying explicit repos will disable ' +
+        'running on the default set of repos for the user.'
   },
   {
     name: 'exclude',
@@ -113,8 +113,8 @@ export const cliOptionDefinitions = [
     defaultValue: [],
     multiple: true,
     description:
-        'Repositories not to load.  Overrides the values from the --repo' +
-        ' and --test flag.'
+        'Repositories not to load.  Overrides the values from the --repo ' +
+        'and --test flag.'
   },
   {
     name: 'fresh',
@@ -129,9 +129,9 @@ export const cliOptionDefinitions = [
     type: String,
     defaultValue: 'tattoo_config.json',
     description:
-        'Specify path to a json file which contains base configuration' +
-        ' values.  Command-line options flags supercede values in file ' +
-        ' where they differ.  If file is missing, Tattoo will ignore.'
+        'Specify path to a json file which contains base configuration ' +
+        'values.  Command-line options supercede values in file where ' +
+        'they differ.  If file is missing, Tattoo will ignore.'
   },
   {
     name: 'color',
@@ -168,8 +168,8 @@ export const cliOptionDefinitions = [
     alias: 'd',
     type: String,
     description:
-        'Override the default path "tattoo_workspace" where the repositories' +
-        ' will be cloned and web-component-tester will run.'
+        'Override the default path "tattoo_workspace" where the repositories ' +
+        'will be cloned and web-component-tester will run.'
   },
   {
     name: 'help',
