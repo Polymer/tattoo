@@ -12,7 +12,6 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
-// import * as child_process from 'child_process';
 import * as npmRun from 'npm-run';
 import * as path from 'path';
 import * as resolve from 'resolve';
