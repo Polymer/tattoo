@@ -21,10 +21,12 @@ async function main() {
   try {
     const cliOptions: CliOptions = getCommandLineOptions();
     if (cliOptions.version) {
-      return console.log(getVersion());
+      console.log(getVersion());
+      return;
     }
     if (cliOptions.help) {
-      return console.log(getCliHelp());
+      console.log(getCliHelp());
+      return;
     }
     mergeConfigFileOptions(cliOptions, loadConfigFileOptions(cliOptions));
     ensureGitHubToken(cliOptions);
