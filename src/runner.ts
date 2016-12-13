@@ -18,7 +18,7 @@ declare function require(name: string): any; try {
 }
 
 import * as Bottleneck from 'bottleneck';
-import * as colors from 'colors/safe';
+import * as chalk from 'chalk';
 import * as child_process from 'child_process';
 import * as fs from 'fs';
 import * as GitHub from 'github';
@@ -559,7 +559,7 @@ export class Runner {
     // First output the output of tests that failed.
     for (const result of testResults) {
       if (result.result === TestResultValue.failed) {
-        const colorFunction = this._color ? colors.red.inverse : (s) => s;
+        const colorFunction = this._color ? chalk.red.inverse : (s) => s;
         console.log(divider);
         console.log(colorFunction(`${git.serializeGitHubRepoRef(
             result.workspaceRepo.githubRepoRef)} output:`));
@@ -601,9 +601,9 @@ export class Runner {
             result.workspaceRepo.githubRepoRef)}`;
         if (this._color) {
           const colorFunction = {
-              'PASSED': colors.green,
-              'SKIPPED': colors.yellow,
-              'FAILED': colors.inverse.red
+              'PASSED': chalk.green,
+              'SKIPPED': chalk.yellow,
+              'FAILED': chalk.inverse.red
           }[bucketName];
           if (colorFunction) {
             output = colorFunction(output);
