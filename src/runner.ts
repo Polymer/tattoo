@@ -105,7 +105,7 @@ export class Runner {
   // TODO(usergenic): This constructor is getting long.  Break up some of
   // these stanzas into supporting methods.
   constructor(options: RunnerOptions) {
-    this._color = options.color === 'on';
+    this._color = options.color !== 'off';
     this._excludes = options.excludes || [];
     this._fresh = !!options.fresh;
     // TODO(usergenic): Pass an option to gitUtil.connectToGitHub for the
