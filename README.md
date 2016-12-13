@@ -188,4 +188,5 @@ Options
                                where the repositories will be cloned and web-
                                component-tester will run.
   -h, --help                   Print this usage example.
+  -V, --version                Print out the version of tattoo.
 ```
