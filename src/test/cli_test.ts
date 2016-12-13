@@ -62,4 +62,10 @@ suite('cli', () => {
     expect(helpEmbedOpenText + generatedHelp + helpEmbedCloseText)
         .not['differentFrom'](helpEmbed);
   });
+
+  test('Returns the current version of tattoo', () => {
+    assert.equal(
+        JSON.parse(fs.readFileSync('package.json').toString())['version'],
+        cli.getVersion());
+  });
 });

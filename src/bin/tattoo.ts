@@ -13,16 +13,32 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
-import {CliOptions, getCommandLineOptions, showCliHelp, loadConfigFileOptions, mergeConfigFileOptions, ensureGitHubToken} from '../cli';
+import {CliOptions, getCommandLineOptions, getCliHelp, getVersion, loadConfigFileOptions, mergeConfigFileOptions, loadGitHubToken} from '../cli';
 import {Runner, RunnerOptions} from '../runner';
 
-async function main() {
+export async function main(argv: string[]): Promise<number> {
   console.time('tattoo');
   try {
-    const cliOptions: CliOptions = getCommandLineOptions();
-    showCliHelp(cliOptions);
+    const cliOptions: CliOptions = getCommandLineOptions(argv);
+    if (cliOptions.version) {
+      console.log(getVersion());
+      return 0;
+    }
+    if (cliOptions.help) {
+      console.log(getCliHelp());
+      return 0;
+    }
     mergeConfigFileOptions(cliOptions, loadConfigFileOptions(cliOptions));
-    ensureGitHubToken(cliOptions);
+    loadGitHubToken(cliOptions);
+    if (!cliOptions['github-token']) {
+      console.error(`
+You need to create a github token and place it in a file named 'github-token'.
+The token only needs the 'public repos' permission.
+
+Generate a token here:   https://github.com/settings/tokens
+`);
+      return 1;
+    }
     const runnerOptions: RunnerOptions = {
       color: cliOptions['color'],
       excludes: cliOptions['exclude'],
@@ -47,11 +63,12 @@ async function main() {
     await runner.run();
   } catch (err) {
     // Report the error and crash.
-    console.error('\n\n');
     console.error(err.stack || err);
-    process.exit(1);
+    return 1;
   }
   console.timeEnd('tattoo');
 }
 
-main();
+if (!module.parent) {
+  main(process.argv.slice(2)).then((exitCode) => process.exit(exitCode));
+}

@@ -14,6 +14,7 @@
 
 import * as commandLineArgs from 'command-line-args';
 import * as fs from 'fs';
+import * as path from 'path';
 import {Runner, RunnerOptions} from './runner';
 
 export interface CliOptions {
@@ -27,6 +28,7 @@ export interface CliOptions {
   'skip-test'?: string[];
   'test'?: string[];
   'verbose'?: boolean;
+  'version'?: boolean;
   'wct-flags'?: string[];
   'workspace-dir'?: string;
 }
@@ -44,8 +46,8 @@ export interface ConfigFileOptions {
   'workspace-dir'?: string;
 }
 
-export function getCommandLineOptions(): CliOptions {
-  const argv = process.argv.slice(2).map((arg) => {
+export function getCommandLineOptions(args: string[]): CliOptions {
+  const argv = args.map((arg) => {
     // HACK(usergenic): The command-line-args package has a problem with values
     // of flags that look like flags.  To work around this problem, we prefix
     // all dash-prefixed values with a space in any assignment-style flag that
@@ -174,6 +176,13 @@ export const cliOptionDefinitions = [
     alias: 'h',
     type: Boolean,
     description: 'Print this usage example.'
+  },
+  {
+    name: 'version',
+    alias: 'V',
+    type: Boolean,
+    defaultValue: false,
+    description: 'Print out the version of tattoo.'
   }
 ];
 
@@ -182,20 +191,19 @@ export const cliOptionDefinitions = [
  * in the github-token file in working folder.  If that doesn't exist either,
  * we message to the user that we need a token and exit the process.
  */
-export function ensureGitHubToken(options: CliOptions) {
+export function loadGitHubToken(options: CliOptions) {
   // TODO(usergenic): Maybe support GITHUB_TOKEN as an environment variable,
   // since this would be a better solution for Travis deployments etc.
+  const githubFilename = 'github-token';
   if (!options['github-token']) {
+    if (!fs.existsSync(githubFilename)) {
+      console.error(`Missing file "${githubFilename}"`);
+      return;
+    }
     try {
-      options['github-token'] = fs.readFileSync('github-token', 'utf8').trim();
+      options['github-token'] = fs.readFileSync(githubFilename, 'utf8').trim();
     } catch (e) {
-      console.error(`
-You need to create a github token and place it in a file named 'github-token'.
-The token only needs the 'public repos' permission.
-
-Generate a token here:   https://github.com/settings/tokens
-    `);
-      process.exit(1);
+      console.error(`Unable to load file ${githubFilename}: ${e.message}`);
     }
   }
 }
@@ -263,17 +271,6 @@ export function mergeConfigFileOptions(
   mergeBasic('workspace-dir', 'string');
 }
 
-
-/**
- * Displays the usage information for the CLI if requested in options.
- */
-export function showCliHelp(options: CliOptions) {
-  if (options.help) {
-    console.log(getCliHelp());
-    process.exit(0);
-  }
-}
-
 /**
  * Produces the usage information to display for the --help/-h option.
  */
@@ -294,4 +291,14 @@ export function getCliHelp(): string {
     },
     {header: 'Options', optionList: cliOptionDefinitions}
   ]);
+}
+
+/**
+ * Gets the version number from the package.json
+ */
+export function getVersion(): string {
+  const packageJsonFilename = path.join(__dirname, '../package.json');
+  const packageJson = fs.readFileSync(packageJsonFilename).toString();
+  const packageData = JSON.parse(packageJson);
+  return packageData['version'];
 }
