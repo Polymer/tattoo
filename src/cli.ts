@@ -46,8 +46,8 @@ export interface ConfigFileOptions {
   'workspace-dir'?: string;
 }
 
-export function getCommandLineOptions(): CliOptions {
-  const argv = process.argv.slice(2).map((arg) => {
+export function getCommandLineOptions(args: string[]): CliOptions {
+  const argv = args.map((arg) => {
     // HACK(usergenic): The command-line-args package has a problem with values
     // of flags that look like flags.  To work around this problem, we prefix
     // all dash-prefixed values with a space in any assignment-style flag that

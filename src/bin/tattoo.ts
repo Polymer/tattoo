@@ -16,10 +16,10 @@
 import {CliOptions, getCommandLineOptions, getCliHelp, getVersion, loadConfigFileOptions, mergeConfigFileOptions, loadGitHubToken} from '../cli';
 import {Runner, RunnerOptions} from '../runner';
 
-export async function main(): Promise<number> {
+export async function main(argv: string[]): Promise<number> {
   console.time('tattoo');
   try {
-    const cliOptions: CliOptions = getCommandLineOptions();
+    const cliOptions: CliOptions = getCommandLineOptions(argv);
     if (cliOptions.version) {
       console.log(getVersion());
       return 0;
@@ -70,5 +70,5 @@ Generate a token here:   https://github.com/settings/tokens
 }
 
 if (!module.parent) {
-  main().then((exitCode) => process.exit(exitCode));
+  main(process.argv.slice(2)).then((exitCode) => process.exit(exitCode));
 }
