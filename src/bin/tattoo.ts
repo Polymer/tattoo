@@ -31,11 +31,11 @@ async function main() {
       skipTests: cliOptions['skip-test'],
       tests: cliOptions['test'],
       verbose: cliOptions['verbose'],
-      wctFlags: cliOptions['wct-flags'] || [],
+      wctFlags: cliOptions['wct-flags'],
       workspaceDir: cliOptions['workspace-dir']
     };
-    if (runnerOptions.wctFlags.length === 0) {
-      runnerOptions.wctFlags.push('--local chrome');
+    if (!runnerOptions.wctFlags) {
+      runnerOptions.wctFlags = ['--local chrome'];
     }
     const runner: Runner = new Runner(runnerOptions);
     await runner.run();

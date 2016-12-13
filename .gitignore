@@ -5,6 +5,7 @@ rerun.sh
 lib
 node_modules
 github-token
+tattoo_config.json
 tattoo_workspace
 *.js
 typings

@@ -229,7 +229,8 @@ export function mergeConfigFileOptions(
       if (typeof cfOptions[name] === 'string') {
         cfOptions[name] = [cfOptions[name]];
       }
-      options[name].push.apply(options[name], cfOptions[name]);
+      options[name] = options[name] ? options[name].concat(cfOptions[name]) :
+                                      cfOptions[name];
     }
   }
 
