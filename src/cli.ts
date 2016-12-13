@@ -14,6 +14,7 @@
 
 import * as commandLineArgs from 'command-line-args';
 import * as fs from 'fs';
+import * as path from 'path';
 import {Runner, RunnerOptions} from './runner';
 
 export interface CliOptions {
@@ -27,6 +28,7 @@ export interface CliOptions {
   'skip-test'?: string[];
   'test'?: string[];
   'verbose'?: boolean;
+  'version'?: boolean;
   'wct-flags'?: string[];
   'workspace-dir'?: string;
 }
@@ -174,6 +176,13 @@ export const cliOptionDefinitions = [
     alias: 'h',
     type: Boolean,
     description: 'Print this usage example.'
+  },
+  {
+    name: 'version',
+    alias: 'V',
+    type: Boolean,
+    defaultValue: false,
+    description: 'Print out the version of tattoo.'
   }
 ];
 
@@ -275,6 +284,16 @@ export function showCliHelp(options: CliOptions) {
 }
 
 /**
+ * Displays the current version of tattoo.
+ */
+export function showVersion(options: CliOptions) {
+  if (options.version) {
+    console.log(getVersion());
+    process.exit(0);
+  }
+}
+
+/**
  * Produces the usage information to display for the --help/-h option.
  */
 export function getCliHelp(): string {
@@ -294,4 +313,14 @@ export function getCliHelp(): string {
     },
     {header: 'Options', optionList: cliOptionDefinitions}
   ]);
+}
+
+/**
+ * Gets the version number from the package.json
+ */
+export function getVersion(): string {
+  const packageJsonFilename = path.join(__dirname, '../package.json');
+  const packageJson = fs.readFileSync(packageJsonFilename).toString();
+  const packageData = JSON.parse(packageJson);
+  return packageData['version'];
 }

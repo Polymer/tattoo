@@ -13,13 +13,14 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
-import {CliOptions, getCommandLineOptions, showCliHelp, loadConfigFileOptions, mergeConfigFileOptions, ensureGitHubToken} from '../cli';
+import {CliOptions, getCommandLineOptions, showCliHelp, showVersion, loadConfigFileOptions, mergeConfigFileOptions, ensureGitHubToken} from '../cli';
 import {Runner, RunnerOptions} from '../runner';
 
 async function main() {
   console.time('tattoo');
   try {
     const cliOptions: CliOptions = getCommandLineOptions();
+    showVersion(cliOptions);
     showCliHelp(cliOptions);
     mergeConfigFileOptions(cliOptions, loadConfigFileOptions(cliOptions));
     ensureGitHubToken(cliOptions);
