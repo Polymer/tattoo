@@ -601,9 +601,9 @@ export class Runner {
             result.workspaceRepo.githubRepoRef)}`;
         if (this._color) {
           const colorFunction = {
-              'PASSED': chalk.green,
-              'SKIPPED': chalk.yellow,
-              'FAILED': chalk.inverse.red
+            'PASSED': chalk.green,
+            'SKIPPED': chalk.yellow,
+            'FAILED': chalk.inverse.red
           }[bucketName];
           if (colorFunction) {
             output = colorFunction(output);

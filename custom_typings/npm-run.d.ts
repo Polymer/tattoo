@@ -1,11 +1,10 @@
-import {ChildProcess} from 'child_process';
-
 declare module 'npm-run' {
+  import {ChildProcess} from 'child_process';
   interface Options {
     cwd?: string;
     env?: Object;
     argv0?: string;
-    stdio?: Array|string;
+    stdio?: string[]|string;
     detached?: boolean;
     uid?: number;
     gid?: number;

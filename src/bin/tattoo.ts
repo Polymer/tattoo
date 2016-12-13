@@ -13,15 +13,19 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
-import {CliOptions, getCommandLineOptions, showCliHelp, showVersion, loadConfigFileOptions, mergeConfigFileOptions, ensureGitHubToken} from '../cli';
+import {CliOptions, getCommandLineOptions, getCliHelp, getVersion, loadConfigFileOptions, mergeConfigFileOptions, ensureGitHubToken} from '../cli';
 import {Runner, RunnerOptions} from '../runner';
 
 async function main() {
   console.time('tattoo');
   try {
     const cliOptions: CliOptions = getCommandLineOptions();
-    showVersion(cliOptions);
-    showCliHelp(cliOptions);
+    if (cliOptions.version) {
+      return console.log(getVersion());
+    }
+    if (cliOptions.help) {
+      return console.log(getCliHelp());
+    }
     mergeConfigFileOptions(cliOptions, loadConfigFileOptions(cliOptions));
     ensureGitHubToken(cliOptions);
     const runnerOptions: RunnerOptions = {
@@ -48,7 +52,6 @@ async function main() {
     await runner.run();
   } catch (err) {
     // Report the error and crash.
-    console.error('\n\n');
     console.error(err.stack || err);
     process.exit(1);
   }

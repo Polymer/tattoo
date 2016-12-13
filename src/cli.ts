@@ -198,13 +198,14 @@ export function ensureGitHubToken(options: CliOptions) {
     try {
       options['github-token'] = fs.readFileSync('github-token', 'utf8').trim();
     } catch (e) {
-      console.error(`
+      const err = new Error(`
 You need to create a github token and place it in a file named 'github-token'.
 The token only needs the 'public repos' permission.
 
 Generate a token here:   https://github.com/settings/tokens
-    `);
-      process.exit(1);
+`);
+      err.stack = undefined;
+      throw err;
     }
   }
 }
@@ -270,27 +271,6 @@ export function mergeConfigFileOptions(
   mergeBasic('verbose', 'boolean');
   mergeArray('wct-flags');
   mergeBasic('workspace-dir', 'string');
-}
-
-
-/**
- * Displays the usage information for the CLI if requested in options.
- */
-export function showCliHelp(options: CliOptions) {
-  if (options.help) {
-    console.log(getCliHelp());
-    process.exit(0);
-  }
-}
-
-/**
- * Displays the current version of tattoo.
- */
-export function showVersion(options: CliOptions) {
-  if (options.version) {
-    console.log(getVersion());
-    process.exit(0);
-  }
 }
 
 /**
