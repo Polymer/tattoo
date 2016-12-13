@@ -203,7 +203,7 @@ export async function checkoutOriginRef(
   return nodegitRepo.getBranch('refs/remotes/origin/' + checkoutRef)
       .then(function(reference) {
         // checkout branch
-        return nodegitRepo.checkoutRef(reference);
+        nodegitRepo.checkoutRef(reference);
       })
       .then(() => nodegitRepo);
 }

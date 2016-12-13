@@ -167,24 +167,24 @@ tattoo (test all the things over & over)
 
 Options
 
-  -t, --test string[]          Repositories to test. (This is the default
+  -t, --test string[]          Repositories to test.  (This is the default
                                option, so the --test/-t switch itself is not
                                required.)
-  -s, --skip-test string[]     Repositories not to test. Overrides the values
+  -s, --skip-test string[]     Repositories not to test.  Overrides the values
                                from the --test
-  -r, --require string[]       Explicit repos to load. Specifying explicit
+  -r, --require string[]       Explicit repos to load.  Specifying explicit
                                repos will disable running on the default set of
                                repos for the user.
-  -e, --exclude string[]       Repositories not to load. Overrides the values
+  -e, --exclude string[]       Repositories not to load.  Overrides the values
                                from the --repo and --test flag.
   -f, --fresh                  Set to clone all repos from remote instead of
                                updating local copies.
   -c, --config-file string     Specify path to a json file which contains base
-                               configuration values. Command-line options flags
-                               supercede values in file where they differ. If
+                               configuration values.  Command-line options
+                               supercede values in file where they differ.  If
                                file is missing, Tattoo will ignore.
   -C, --color string           Set to "off" if you do not want color in your
-                               output. Defaults to "on".
+                               output.  Defaults to "on".
   -g, --github-token string    Provide github token via command-line flag
                                instead of "github-token" file.
   -v, --verbose                Set to print output from failed tests.
