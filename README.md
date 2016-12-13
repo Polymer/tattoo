@@ -5,12 +5,7 @@ Test all the things over and over.
 
 ```
 npm install -g tattoo
-npm install -g web-component-tester
 ```
-
-Note: Be sure you have web-component-tester installed and up-to-date.  Tattoo
-doesn't currently play nicely with outdated versions of wct and may generate
-cryptic output or stack-traces.
 
 ### Usage
 
@@ -136,7 +131,7 @@ Config files support most of the same options as the command-line flags:
   Set to specify flags passed to wct.
 
 * `"workspace-dir": "/tmp/tattoo-workspace"`
-  Specify a different target folder to clone repos and run web-components-tester
+  Specify a different target folder to clone repos and run web-component-tester
   from.
 
 ***Clean up installation***
@@ -155,7 +150,7 @@ tattoo -h
 
 tattoo (test all the things over & over)
 
-  Runs the web-components-tester on custom element git repositories.
+  Runs the web-component-tester on custom element git repositories.
 
   Run test for a specific GitHub repository:
   $ tattoo PolymerElements/paper-button
@@ -191,6 +186,6 @@ Options
   -w, --wct-flags string[]     Set to specify flags passed to wct.
   -d, --workspace-dir string   Override the default path "tattoo_workspace"
                                where the repositories will be cloned and web-
-                               components-tester will run.
+                               component-tester will run.
   -h, --help                   Print this usage example.
 ```

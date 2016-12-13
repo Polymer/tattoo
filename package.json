@@ -37,12 +37,14 @@
     "escape-string-regexp": "^1.0.5",
     "github": "^0.2.0",
     "nodegit": "^0.16.0",
+    "npm-run": "^4.1.0",
     "pad": "^1.0.0",
     "progress": "^1.1.8",
     "promisify-node": "^0.3.0",
     "resolve": "^1.1.7",
     "rimraf": "^2.4.3",
-    "semver": "^5.1.0"
+    "semver": "^5.1.0",
+    "web-component-tester": "^5.0.0"
   },
   "devDependencies": {
     "@types/chai": "^3.4.29",
