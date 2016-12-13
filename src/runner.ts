@@ -18,6 +18,7 @@ declare function require(name: string): any; try {
 }
 
 import * as Bottleneck from 'bottleneck';
+import * as chalk from 'chalk';
 import * as child_process from 'child_process';
 import * as fs from 'fs';
 import * as GitHub from 'github';
@@ -39,6 +40,9 @@ import {Workspace, WorkspaceRepo} from './workspace';
  * of the Runner.
  */
 export interface RunnerOptions {
+  // Use color in the output?
+  color?: string;
+
   // An array of repo expressions for filtering out repos to load.
   excludes?: string[];
 
@@ -80,6 +84,8 @@ export interface RunnerOptions {
 }
 
 export class Runner {
+  private _color: boolean;
+
   // The repository patterns we do not want to load.
   private _excludes: string[];
 
@@ -99,6 +105,7 @@ export class Runner {
   // TODO(usergenic): This constructor is getting long.  Break up some of
   // these stanzas into supporting methods.
   constructor(options: RunnerOptions) {
+    this._color = options.color !== 'off';
     this._excludes = options.excludes || [];
     this._fresh = !!options.fresh;
     // TODO(usergenic): Pass an option to gitUtil.connectToGitHub for the
@@ -120,6 +127,7 @@ export class Runner {
     if (this._verbose) {
       console.log('Tattoo Runner configuration:');
       console.log({
+        color: this._color,
         excludes: this._excludes,
         fresh: this._fresh,
         requires: this._requires,
@@ -551,9 +559,11 @@ export class Runner {
     // First output the output of tests that failed.
     for (const result of testResults) {
       if (result.result === TestResultValue.failed) {
+        const colorFunction = this._color ? chalk.red.inverse : (s) => s;
         console.log(divider);
-        console.log(`${git.serializeGitHubRepoRef(
-            result.workspaceRepo.githubRepoRef)} output:`);
+        console.log(colorFunction(`${git.serializeGitHubRepoRef(
+            result.workspaceRepo.githubRepoRef)} output:`));
+        console.log();
         console.log(result.output.trim());
       }
     }
@@ -587,8 +597,19 @@ export class Runner {
 
     for (const bucketName of ['PASSED', 'SKIPPED', 'FAILED']) {
       for (const result of resultBuckets[bucketName]) {
-        console.log(`${bucketName}: ${git.serializeGitHubRepoRef(
-            result.workspaceRepo.githubRepoRef)}`);
+        let output = `${bucketName}: ${git.serializeGitHubRepoRef(
+            result.workspaceRepo.githubRepoRef)}`;
+        if (this._color) {
+          const colorFunction = {
+              'PASSED': chalk.green,
+              'SKIPPED': chalk.yellow,
+              'FAILED': chalk.inverse.red
+          }[bucketName];
+          if (colorFunction) {
+            output = colorFunction(output);
+          }
+        }
+        console.log(output);
       }
     }
 

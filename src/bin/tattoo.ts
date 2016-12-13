@@ -24,6 +24,7 @@ async function main() {
     mergeConfigFileOptions(cliOptions, loadConfigFileOptions(cliOptions));
     ensureGitHubToken(cliOptions);
     const runnerOptions: RunnerOptions = {
+      color: cliOptions['color'],
       excludes: cliOptions['exclude'],
       githubToken: cliOptions['github-token'],
       fresh: cliOptions['fresh'],
@@ -36,6 +37,11 @@ async function main() {
     };
     if (!runnerOptions.wctFlags) {
       runnerOptions.wctFlags = ['--local chrome'];
+    }
+    // Color means wct color too.
+    if (runnerOptions.color === 'on' &&
+        runnerOptions.wctFlags.join(' ').indexOf('--color') === -1) {
+      runnerOptions.wctFlags.push('--color');
     }
     const runner: Runner = new Runner(runnerOptions);
     await runner.run();
