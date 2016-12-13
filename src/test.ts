@@ -12,7 +12,8 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
-import * as child_process from 'child_process';
+// import * as child_process from 'child_process';
+import * as npmRun from 'npm-run';
 import * as path from 'path';
 import * as resolve from 'resolve';
 
@@ -55,7 +56,7 @@ export async function test(
     // interacts extraordinarily poorly with wct, forcing the use
     // of child_process.spawn.
 
-    const child = child_process.spawn(wctCommand, flags, spawnParams);
+    const child = npmRun.spawn(wctCommand, flags, spawnParams);
     let output = '';
     child.stdout.on('data', (data: Buffer | string) => {
       output += data;

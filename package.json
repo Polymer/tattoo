@@ -37,6 +37,7 @@
     "escape-string-regexp": "^1.0.5",
     "github": "^0.2.0",
     "nodegit": "^0.16.0",
+    "npm-run": "^4.1.0",
     "pad": "^1.0.0",
     "progress": "^1.1.8",
     "promisify-node": "^0.3.0",
