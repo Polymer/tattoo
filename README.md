@@ -7,6 +7,14 @@ Test all the things over and over.
 npm install -g tattoo
 ```
 
+## GitHub token
+
+ 1. Generate a GitHub token here:  https://github.com/settings/tokens
+ 2. 3 ways to make it available to tattoo:
+    1. Put the token in a file called `github-token`
+    2. Pass it to tattoo every time with `--github-token` CLI option.
+    3. Put it in your `tattoo_config.json` file with key `"github-token"`
+
 ### Usage
 
 When you run tattoo, it will create and/or reuse a directory called
