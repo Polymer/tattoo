@@ -10,10 +10,7 @@ npm install -g tattoo
 ## GitHub token
 
  1. Generate a GitHub token here:  https://github.com/settings/tokens
- 2. Make it available to tattoo:
-    - Put the token in a file called `github-token`
-    - Pass it to tattoo every time with `--github-token` CLI option.
-    - Put it in your `tattoo_config.json` file with key `"github-token"`
+ 2. Put the token in a file called `github-token` in your working dir
 
 ### Usage
 
