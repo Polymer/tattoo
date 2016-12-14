@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   on it.  E.g. `tattoo MyOrg/cool-input -r Polymer/polymer#2.0-preview`  This
   is useful for testing how elements behave prior to release of a shared
   dependency.
+- Added color!
+- Added an ordered summary of all repositories tested and results.
+- Added config file support.
+- Made web-component-tester a versioned dependency of tattoo (no more global
+  version mismatch problems!)
 
 ## 1.x
 - The 1.x version of tattoo was only used by the Polymer team to automate tests
