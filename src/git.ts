@@ -17,7 +17,7 @@
  * manipulating git repositories on the filesystem.
  */
 
-import * as Bottleneck from 'bottleneck';
+import Bottleneck from 'bottleneck';
 import * as child_process from 'child_process';
 import * as GitHub from 'github';
 import * as nodegit from 'nodegit';
