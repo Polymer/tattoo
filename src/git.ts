@@ -134,8 +134,8 @@ export class GitHubConnection {
   }
 
   /**
-   * @returns an array of repo (full_name) values for the given owner (which is either an
-   * org or user on github.)
+   * @returns an array of repo (full_name) values for the given owner (which is
+   * either an org or user on github.)
    */
   async getRepoFullNames(owner: string): Promise<string[]> {
     const names: string[] = [];

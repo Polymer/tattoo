@@ -12,7 +12,8 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
-declare function require(name: string): any; try {
+declare function require(name: string): any;
+try {
   require('source-map-support').install();
 } catch (err) {
 }
@@ -36,7 +37,9 @@ import {Workspace, WorkspaceRepo} from './workspace';
 import promisify = require('promisify-node');
 import rimrafCallback = require('rimraf');
 
-const rimraf = (dir: string) => new Promise((resolve, reject) => rimrafCallback(dir, (e) => e === undefined ? resolve() : reject(e)));
+const rimraf = (dir: string) => new Promise(
+    (resolve, reject) =>
+        rimrafCallback(dir, (e) => e === undefined ? resolve() : reject(e)));
 
 /**
  * RunnerOptions contains all configuration used when constructing an instance
@@ -248,9 +251,12 @@ export class Runner {
                             .catch((error) => {
                               if (this._verbose) {
                                 console.log(
-                                    `Error retrieving information on ${git
-                                        .serializeGitHubRepoRef(
-                                            repo)} from GitHub.  ${error}`);
+                                    `Error retrieving information on ${
+                                                                       git.serializeGitHubRepoRef(
+                                                                           repo)
+                                                                     } from GitHub.  ${
+                                                                                       error
+                                                                                     }`);
                               }
                             })),
                 'Getting Repo details from GitHub...'))
@@ -275,8 +281,9 @@ export class Runner {
           throw new Error(
               `Can not build workspace: more than one repo with name ` +
               ` "${repoRef.repoName}":\n` +
-              `  (${git.serializeGitHubRepoRef(
-                  existingRepo.githubRepoRef)} and ` +
+              `  (${
+                    git.serializeGitHubRepoRef(existingRepo.githubRepoRef)
+                  } and ` +
               `  ${git.serializeGitHubRepoRef(repoRef)})`);
         }
       }
@@ -317,8 +324,10 @@ export class Runner {
               .sort((a, b) => a[0] < b[0] ? -1 : (a[0] > b[0] ? 1 : 0));
       if (workspaceReposToRequire.length > 0) {
         for (const repo of workspaceReposToRequire) {
-          console.log(`Require repo: ${git.serializeGitHubRepoRef(
-              repo[1].githubRepoRef)}`);
+          console.log(
+              `Require repo: ${
+                               git.serializeGitHubRepoRef(repo[1].githubRepoRef)
+                             }`);
         }
       }
     }
@@ -564,8 +573,10 @@ export class Runner {
       if (result.result === TestResultValue.failed) {
         const colorFunction = this._color ? chalk.red.inverse : (s) => s;
         console.log(divider);
-        console.log(colorFunction(`${git.serializeGitHubRepoRef(
-            result.workspaceRepo.githubRepoRef)} output:`));
+        console.log(colorFunction(
+            `${
+               git.serializeGitHubRepoRef(result.workspaceRepo.githubRepoRef)
+             } output:`));
         console.log();
         console.log(result.output.trim());
       }
@@ -600,8 +611,10 @@ export class Runner {
 
     for (const bucketName of ['PASSED', 'SKIPPED', 'FAILED']) {
       for (const result of resultBuckets[bucketName]) {
-        let output = `${bucketName}: ${git.serializeGitHubRepoRef(
-            result.workspaceRepo.githubRepoRef)}`;
+        let output = `${bucketName}: ${
+                                       git.serializeGitHubRepoRef(
+                                           result.workspaceRepo.githubRepoRef)
+                                     }`;
         if (this._color) {
           const colorFunction = {
             'PASSED': chalk.green,

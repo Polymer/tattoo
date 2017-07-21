@@ -26,29 +26,28 @@ suite('bin/tattoo', () => {
     stdout?: string[];
     stderr?: string[];
   }
-  async function testMain(args: string[]):
-      Promise<TestMainResults> {
-        const result: TestMainResults = {};
-        const stdout = testConsole.stdout.inspect();
-        const stderr = testConsole.stderr.inspect();
-        try {
-          result.exitCode = await main(args);
-        } finally {
-          result.stdout = stdout.output.join('\n');
-          result.stderr = stderr.output.join('\n');
-          stdout.restore();
-          stderr.restore();
-        }
-        return result;
-      }
+  async function testMain(args: string[]): Promise<TestMainResults> {
+    const result: TestMainResults = {};
+    const stdout = testConsole.stdout.inspect();
+    const stderr = testConsole.stderr.inspect();
+    try {
+      result.exitCode = await main(args);
+    } finally {
+      result.stdout = stdout.output.join('\n');
+      result.stderr = stderr.output.join('\n');
+      stdout.restore();
+      stderr.restore();
+    }
+    return result;
+  }
 
-  test('Prints out version', async() => {
+  test('Prints out version', async () => {
     const result = await testMain(['--version']);
     assert.include(result.stdout, cli.getVersion());
     assert.equal(result.exitCode, 0);
   });
 
-  test('Prints out usage help', async() => {
+  test('Prints out usage help', async () => {
     const result = await testMain(['--help']);
     assert.include(result.stdout, cli.getCliHelp());
     assert.equal(result.exitCode, 0);
