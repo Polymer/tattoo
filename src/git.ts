@@ -17,7 +17,7 @@
  * manipulating git repositories on the filesystem.
  */
 
-import * as Bottleneck from 'bottleneck';
+import Bottleneck from 'bottleneck';
 import * as child_process from 'child_process';
 import * as GitHub from 'github';
 import * as nodegit from 'nodegit';
@@ -134,8 +134,8 @@ export class GitHubConnection {
   }
 
   /**
-   * @returns an array of repo (full_name) values for the given owner (which is either an
-   * org or user on github.)
+   * @returns an array of repo (full_name) values for the given owner (which is
+   * either an org or user on github.)
    */
   async getRepoFullNames(owner: string): Promise<string[]> {
     const names: string[] = [];

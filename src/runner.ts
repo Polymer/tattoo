@@ -12,12 +12,13 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
-declare function require(name: string): any; try {
+declare function require(name: string): any;
+try {
   require('source-map-support').install();
 } catch (err) {
 }
 
-import * as Bottleneck from 'bottleneck';
+import Bottleneck from 'bottleneck';
 import * as chalk from 'chalk';
 import * as child_process from 'child_process';
 import * as fs from 'fs';
@@ -25,8 +26,6 @@ import * as GitHub from 'github';
 import * as nodegit from 'nodegit';
 import * as pad from 'pad';
 import * as path from 'path';
-import * as promisify from 'promisify-node';
-import * as rimraf from 'rimraf';
 import * as resolve from 'resolve';
 
 import * as git from './git';
@@ -34,6 +33,13 @@ import {test} from './test';
 import {TestResult, TestResultValue} from './test-result';
 import * as util from './util';
 import {Workspace, WorkspaceRepo} from './workspace';
+
+import promisify = require('promisify-node');
+import rimrafCallback = require('rimraf');
+
+const rimraf = (dir: string) => new Promise(
+    (resolve, reject) =>
+        rimrafCallback(dir, (e) => e === undefined ? resolve() : reject(e)));
 
 /**
  * RunnerOptions contains all configuration used when constructing an instance
@@ -145,7 +151,7 @@ export class Runner {
    * refs.
    */
   async _cloneOrUpdateWorkspaceRepos() {
-    const promises: Promise<nodegit.Repository>[] = [];
+    const promises: Promise<nodegit.Repository|void>[] = [];
     const checkoutFails: {name: string, error: Error}[] = [];
     const explicitRequires: string[] = this._tests.concat(this._requires);
 
@@ -189,7 +195,7 @@ export class Runner {
           console.log(`Branch not found: ${ref}`);
         }
         const repoDir = path.join(this._workspace.dir, repo.dir);
-        await promisify(rimraf)(repoDir);
+        await rimraf(repoDir);
         this._workspace.repos.delete(checkoutFail.name);
       }
     }
@@ -245,9 +251,12 @@ export class Runner {
                             .catch((error) => {
                               if (this._verbose) {
                                 console.log(
-                                    `Error retrieving information on ${git
-                                        .serializeGitHubRepoRef(
-                                            repo)} from GitHub.  ${error}`);
+                                    `Error retrieving information on ${
+                                                                       git.serializeGitHubRepoRef(
+                                                                           repo)
+                                                                     } from GitHub.  ${
+                                                                                       error
+                                                                                     }`);
                               }
                             })),
                 'Getting Repo details from GitHub...'))
@@ -272,8 +281,9 @@ export class Runner {
           throw new Error(
               `Can not build workspace: more than one repo with name ` +
               ` "${repoRef.repoName}":\n` +
-              `  (${git.serializeGitHubRepoRef(
-                  existingRepo.githubRepoRef)} and ` +
+              `  (${
+                    git.serializeGitHubRepoRef(existingRepo.githubRepoRef)
+                  } and ` +
               `  ${git.serializeGitHubRepoRef(repoRef)})`);
         }
       }
@@ -314,8 +324,10 @@ export class Runner {
               .sort((a, b) => a[0] < b[0] ? -1 : (a[0] > b[0] ? 1 : 0));
       if (workspaceReposToRequire.length > 0) {
         for (const repo of workspaceReposToRequire) {
-          console.log(`Require repo: ${git.serializeGitHubRepoRef(
-              repo[1].githubRepoRef)}`);
+          console.log(
+              `Require repo: ${
+                               git.serializeGitHubRepoRef(repo[1].githubRepoRef)
+                             }`);
         }
       }
     }
@@ -393,7 +405,7 @@ export class Runner {
       if (this._verbose) {
         console.log(`Removing workspace folder ${workspaceDir}...`);
       }
-      await promisify(rimraf)(workspaceDir);
+      await rimraf(workspaceDir);
     }
 
     // Ensure repos folder exists.
@@ -418,7 +430,7 @@ export class Runner {
         if (this._verbose) {
           console.log(`Removing existing folder: ${cloneDir}...`);
         }
-        await promisify(rimraf)(cloneDir);
+        await rimraf(cloneDir);
       }
     }
   }
@@ -561,8 +573,10 @@ export class Runner {
       if (result.result === TestResultValue.failed) {
         const colorFunction = this._color ? chalk.red.inverse : (s) => s;
         console.log(divider);
-        console.log(colorFunction(`${git.serializeGitHubRepoRef(
-            result.workspaceRepo.githubRepoRef)} output:`));
+        console.log(colorFunction(
+            `${
+               git.serializeGitHubRepoRef(result.workspaceRepo.githubRepoRef)
+             } output:`));
         console.log();
         console.log(result.output.trim());
       }
@@ -597,8 +611,10 @@ export class Runner {
 
     for (const bucketName of ['PASSED', 'SKIPPED', 'FAILED']) {
       for (const result of resultBuckets[bucketName]) {
-        let output = `${bucketName}: ${git.serializeGitHubRepoRef(
-            result.workspaceRepo.githubRepoRef)}`;
+        let output = `${bucketName}: ${
+                                       git.serializeGitHubRepoRef(
+                                           result.workspaceRepo.githubRepoRef)
+                                     }`;
         if (this._color) {
           const colorFunction = {
             'PASSED': chalk.green,

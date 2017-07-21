@@ -68,8 +68,8 @@ declare module 'nodegit' {
   }
   export class Oid {}
   export class Tree {}
-  export class Commit { id(): string }
-  export class Reference { static list(repo: Repository): Promise<any> }
+  export class Commit { id(): string; }
+  export class Reference { static list(repo: Repository): Promise<any>; }
 
   export class Tag {
     static list(repo: Repository): Promise<string[]>;
@@ -77,8 +77,7 @@ declare module 'nodegit' {
     targetId(): Oid;
   }
 
-  type TreeIsh = Oid|Tree|Commit|Reference
-
+  type TreeIsh = Oid|Tree|Commit|Reference;
 
   export interface CheckoutOptions { checkoutStrategy: Number; }
 
@@ -89,6 +88,6 @@ declare module 'nodegit' {
   export class Checkout {
     static STRATEGY: Strategies;
     static tree(repo: Repository, treeIsh: TreeIsh): Promise<void>;
-    static head(repo: Repository, options?: CheckoutOptions): Promise<void>
+    static head(repo: Repository, options?: CheckoutOptions): Promise<void>;
   }
 }

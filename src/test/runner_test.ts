@@ -31,7 +31,7 @@ function minOptions(options?: Object): RunnerOptions {
     }
   }
   return base;
-};
+}
 
 suite('Runner', () => {
 
