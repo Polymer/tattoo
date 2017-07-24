@@ -35,7 +35,7 @@
     "command-line-usage": "^3.0.7",
     "dom5": "^2.3.0",
     "escape-string-regexp": "^1.0.5",
-    "github": "^0.2.0",
+    "github": "^9.2.0",
     "nodegit": "^0.18.3",
     "npm-run": "^4.1.0",
     "pad": "^1.0.0",

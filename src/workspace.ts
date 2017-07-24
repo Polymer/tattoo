@@ -15,7 +15,7 @@
 import * as github from 'github';
 import * as nodegit from 'nodegit';
 
-import {GitHubRepoRef} from './git';
+import {GitHubRepo, GitHubRepoRef} from './git';
 
 /**
  * A Workspace represents a local directory and the set of GitHub repository
@@ -42,7 +42,7 @@ export interface WorkspaceRepo {
   /**
    * Metadata about the elements' github repo, obtained via the GitHub API.
    */
-  githubRepo?: github.Repo;
+  githubRepo?: GitHubRepo;
 
   /**
    * The repo+branch ref as requested by tattoo user.

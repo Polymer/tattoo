@@ -63,7 +63,7 @@ Generate a token here:   https://github.com/settings/tokens
     await runner.run();
   } catch (err) {
     // Report the error and crash.
-    console.error(err.stack || err);
+    console.error(err && err.stack || err);
     return 1;
   }
   console.timeEnd('tattoo');

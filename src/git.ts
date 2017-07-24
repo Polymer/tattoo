@@ -29,6 +29,16 @@ import * as rimraf from 'rimraf';
 import * as util from './util';
 
 /**
+ * The GitHub API response type for a repository.
+ * The type GitHub.Repo is just the repo name.
+ */
+export interface GitHubRepo {
+  name: string;
+  full_name: string;
+  clone_url: string;
+}
+
+/**
  * Represents GitHub repository + optional specific branch/ref requested by the
  * tattoo user.
  */
@@ -51,18 +61,18 @@ export interface GitHubRepoRef {
  * consumption.
  */
 export class GitHubConnection {
-  private _cache: {repos: Map<string, Map<string, GitHub.Repo>>};
+  private _cache: {repos: Map<string, Map<string, GitHubRepo>>};
   private _cloneOptions: nodegit.CloneOptions;
   private _cloneRateLimiter: Bottleneck;
   private _github: GitHub;
   private _token: string;
-  private _user: GitHub.User;
+  private _user: GitHub.Username;
 
   constructor(token: string) {
     this.resetCache();
     this._token = token;
     this._github = new GitHub({
-      version: '3.0.0',
+      // version: '3.0.0',
       protocol: 'https',
     });
     this._github.authenticate({type: 'oauth', token: token});
@@ -94,7 +104,7 @@ export class GitHubConnection {
    * TODO(usergenic): The two let variables here are obnoxious; clean them up.
    *   See: https://github.com/Polymer/tattoo/pull/22#discussion_r88372397
    */
-  async cloneOrFetch(githubRepo: GitHub.Repo, cloneDir: string):
+  async cloneOrFetch(githubRepo: GitHubRepo, cloneDir: string):
       Promise<nodegit.Repository> {
     if (util.existsSync(cloneDir)) {
       const openRepo = await nodegit.Repository.open(cloneDir);
@@ -113,24 +123,22 @@ export class GitHubConnection {
   /**
    * @returns a representation of a github repo from a string version
    */
-  async getRepoInfo(owner: string, repo: string): Promise<GitHub.Repo> {
+  async getRepoInfo(owner: string, repo: string): Promise<GitHubRepo> {
     if (this._cache.repos.has(owner.toLowerCase()) &&
         this._cache.repos.get(owner.toLowerCase()).has(repo.toLowerCase())) {
       return this._cache.repos.get(owner.toLowerCase()).get(repo.toLowerCase());
     }
-    return promisify(this._github.repos.get)({user: owner, repo: repo})
-        .then((response) => {
-          // TODO(usergenic): Patch to _handle_ redirects and/or include
-          // details in error messaging.  This was encountered because we
-          // tried to request Polymer/hydrolysis which has been renamed to
-          // Polymer/polymer-analyzer and the API doesn't auto-follow this.
-          if (isRedirect(response)) {
-            console.log('Repo ${owner}/${repo} has moved permanently.');
-            console.log(response);
-            throw new Error(`Repo ${owner}/${repo} could not be loaded.`);
-          }
-          return response;
-        });
+    const response = await this._github.repos.get({owner: owner, repo: repo});
+    // TODO(usergenic): Patch to _handle_ redirects and/or include
+    // details in error messaging.  This was encountered because we
+    // tried to request Polymer/hydrolysis which has been renamed to
+    // Polymer/polymer-analyzer and the API doesn't auto-follow this.
+    if (isRedirect(response)) {
+      console.log('Repo ${owner}/${repo} has moved permanently.');
+      console.log(response);
+      throw new Error(`Repo ${owner}/${repo} could not be loaded.`);
+    }
+    return response.data;
   }
 
   /**
@@ -141,28 +149,29 @@ export class GitHubConnection {
     const names: string[] = [];
 
     // Try to get the repo names assuming owner is an org.
-    const getFromOrg = promisify(this._github.repos.getFromOrg);
-    const getFromUser = promisify(this._github.repos.getFromUser);
     let pageSize = 50;
     let page = 0;
-    let repos: GitHub.Repo[] = [];
-    const ownerRepoMap = new Map<string, GitHub.Repo>();
+    let repos: GitHubRepo[] = [];
+    const ownerRepoMap = new Map<string, GitHubRepo>();
     this._cache.repos.set(owner.toLowerCase(), ownerRepoMap);
     let isOrg = true;
     do {
       if (isOrg) {
-        await getFromOrg({org: owner, per_page: pageSize, page: page})
-            .then((results) => {
-              repos = results;
-            })
-            .catch((error) => {
-              // Maybe owner is not an org.
-              isOrg = false;
-            });
+        try {
+          const response = await this._github.repos.getForOrg({org: owner, per_page: pageSize, page: page});
+          repos = response.data;
+        } catch (e) {
+          // Maybe owner is not an org.
+          isOrg = false;
+        }
       }
       if (!isOrg) {
-        repos = await getFromUser({user: owner, per_page: pageSize, page: page})
-                    .catch((error) => []);
+        try {
+          const response = await this._github.repos.getForUser({username: owner, per_page: pageSize, page: page});
+          repos = response.data;
+        } catch (e) {
+          repos = [];
+        }
       }
       for (const repo of repos) {
         names.push(repo.full_name);
@@ -183,13 +192,6 @@ export class GitHubConnection {
     await nodegitRepo.fetch('origin', this._cloneOptions.fetchOpts);
   }
 
-  /**
-   * @returns the current user info from GitHub.  The current user is
-   * determined by the token being used.
-   */
-  async getCurrentUser(): Promise<GitHub.User> {
-    return promisify(this._github.user.get)({});
-  }
 }
 
 /**
@@ -265,6 +267,6 @@ export async function openRepo(cloneDir: string): Promise<nodegit.Repository> {
 /**
  * @returns true if the repo is actually a response redirecting to another repo
  */
-function isRedirect(repo: GitHub.Repo): boolean {
+function isRedirect(repo: GitHubRepo): boolean {
   return !!(repo['meta'] && repo['meta']['status'].match(/^301\b/));
 }
