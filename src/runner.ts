@@ -36,6 +36,7 @@ import {Workspace, WorkspaceRepo} from './workspace';
 
 import promisify = require('promisify-node');
 import rimrafCallback = require('rimraf');
+import {GitHubRepo} from './git';
 
 const rimraf = (dir: string) => new Promise(
     (resolve, reject) =>
@@ -242,8 +243,8 @@ export class Runner {
     const githubRepoRefs: git.GitHubRepoRef[] =
         expandedRepos.concat(expandedTests);
 
-    const githubRepos: GitHub.Repo[] =
-        <GitHub.Repo[]>(
+    const githubRepos: GitHubRepo[] =
+        <GitHubRepo[]>(
             await util.promiseAllWithProgress(
                 githubRepoRefs.map(
                     repo =>
@@ -547,7 +548,7 @@ export class Runner {
         });
         testPromises.push(testPromise);
       } catch (err) {
-        throw new Error(`Error testing ${repo.dir}:\n${err.stack || err}`);
+        throw new Error(`Error testing ${repo.dir}:\n${err && err.stack || err}`);
       }
     }
 
